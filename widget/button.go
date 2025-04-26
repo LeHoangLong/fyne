@@ -59,6 +59,8 @@ type Button struct {
 	Alignment     ButtonAlign
 	IconPlacement ButtonIconPlacement
 
+	Wrapping fyne.TextWrap
+
 	OnTapped func() `json:"-"`
 
 	hovered, focused bool
@@ -101,7 +103,7 @@ func (b *Button) CreateRenderer() fyne.WidgetRenderer {
 	seg.Style.Alignment = fyne.TextAlignCenter
 	text := NewRichText(seg)
 	text.inset = fyne.NewSquareSize(th.Size(theme.SizeNameInnerPadding))
-
+	text.Wrapping = b.Wrapping
 	background := canvas.NewRectangle(th.Color(theme.ColorNameButton, v))
 	background.CornerRadius = th.Size(theme.SizeNameInputRadius)
 	tapBG := canvas.NewRectangle(color.Transparent)
@@ -243,7 +245,7 @@ func (r *buttonRenderer) Layout(size fyne.Size) {
 		return
 	}
 	iconSize := fyne.NewSquareSize(th.Size(theme.SizeNameInlineIcon))
-	labelSize := r.label.MinSize()
+	labelSize := fyne.NewSize(fyne.Max(r.label.MinSize().Width, size.Width), r.label.MinSize().Height)
 
 	r.button.propertyLock.RLock()
 	defer r.button.propertyLock.RUnlock()
