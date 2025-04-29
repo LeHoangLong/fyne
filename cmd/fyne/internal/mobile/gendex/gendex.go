@@ -86,12 +86,35 @@ func gendex() error {
 	if err != nil {
 		return err
 	}
-	cmd = execabs.Command(
-		buildTools+"/dx",
-		"--dex",
-		"--output="+tmpdir+"/classes.dex",
-		tmpdir+"/work",
-	)
+
+	if _, err := os.Stat(buildTools + "/dx"); err == nil {
+		cmd = execabs.Command(
+			buildTools+"/dx",
+			"--dex",
+			"--output="+tmpdir+"/classes.dex",
+			tmpdir+"/work",
+		)
+	} else if _, err := os.Stat(buildTools + "/d8"); err == nil {
+		files, err := os.ReadDir(tmpdir + "/work/org/golang/app")
+		if err != nil {
+			return err
+		}
+		inputFiles := []string{}
+		for _, file := range files {
+			inputFiles = append(inputFiles, tmpdir+"/work/org/golang/app/"+file.Name())
+		}
+
+		args := []string{
+			"--output",
+			tmpdir,
+		}
+		args = append(args, inputFiles...)
+
+		cmd = execabs.Command(
+			buildTools+"/d8",
+			args...,
+		)
+	}
 	if out, err := cmd.CombinedOutput(); err != nil {
 		os.Stderr.Write(out)
 		return err
