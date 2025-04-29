@@ -252,6 +252,23 @@ func (r *modalPopUpRenderer) Layout(canvasSize fyne.Size) {
 	size := r.popUp.Content.MinSize().Max(requestedSize)
 	size = size.Min(canvasSize.Subtract(padding))
 	pos := fyne.NewPos((canvasSize.Width-size.Width)/2, (canvasSize.Height-size.Height)/2)
+
+	areaPos, areaSize := r.popUp.Canvas.InteractiveArea()
+	focused := r.popUp.Canvas.Focused()
+	interactiveAreaOffset := fyne.NewPos(0, 0)
+	if focused != nil {
+		bottom := areaSize.Height - areaPos.Y
+		currentDialogPos := r.popUp.Content.Position()
+		if entry, ok := focused.(*Entry); ok {
+			entryPos := entry.BaseWidget.Position().Add(currentDialogPos).Add(entry.MinSize())
+			if entryPos.Y > bottom {
+				interactiveAreaOffset = fyne.NewPos(0, entryPos.Y-bottom).AddXY(0, r.offset().Y)
+			}
+		}
+	}
+
+	pos = pos.Subtract(interactiveAreaOffset)
+
 	r.popUp.Content.Move(pos)
 	r.popUp.Content.Resize(size)
 
