@@ -23,6 +23,7 @@ type canvas struct {
 	content        fyne.CanvasObject
 	device         *device
 	initialized    bool
+	lastTapId      int
 	lastTapDown    map[int]time.Time
 	lastTapDownPos map[int]fyne.Position
 	lastTapDelta   map[int]fyne.Delta
@@ -212,18 +213,27 @@ func (c *canvas) sizeContent(size fyne.Size) {
 		}
 	}
 
+	newPos := areaPos
 	if c.padded {
-		c.content.Resize(areaSize.Subtract(fyne.NewSize(theme.Padding()*2, theme.Padding()*2)))
-		c.content.Move(areaPos.Add(fyne.NewPos(theme.Padding(), theme.Padding())))
-	} else {
-		c.content.Resize(areaSize)
-		c.content.Move(areaPos)
+		newPos = newPos.Add(fyne.NewPos(theme.Padding(), theme.Padding()))
+		size = size.SubtractWidthHeight(theme.Padding()*2, theme.Padding()*2)
 	}
+
+	size = size.Subtract(areaPos)
+
+	lastTapPosition := c.lastTapDownPos[c.lastTapId]
+	if lastTapPosition.Y > areaPos.Y+areaSize.Height {
+		heightDiff := size.Height - areaSize.Height - theme.Padding()
+		newPos = newPos.SubtractXY(0, heightDiff).Add(areaPos)
+	}
+	c.content.Resize(size)
+	c.content.Move(newPos)
 }
 
 func (c *canvas) tapDown(pos fyne.Position, tapID int) {
 	c.lastTapDown[tapID] = time.Now()
 	c.lastTapDownPos[tapID] = pos
+	c.lastTapId = tapID
 	c.dragging = nil
 
 	co, objPos, layer := c.findObjectAtPositionMatching(pos, func(object fyne.CanvasObject) bool {
