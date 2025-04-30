@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/internal/app"
 	intdriver "fyne.io/fyne/v2/internal/driver"
 	"fyne.io/fyne/v2/internal/driver/common"
+	intwidget "fyne.io/fyne/v2/internal/widget"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -282,6 +283,36 @@ func (c *canvas) tapMove(pos fyne.Position, tapID int,
 
 		return false
 	})
+
+	if deltaX != 0 {
+		co, _, _ := c.findObjectAtPositionMatching(pos, func(object fyne.CanvasObject) bool {
+			if scroll, ok := object.(*intwidget.Scroll); ok {
+				if scroll.Scrollable(intwidget.ScrollHorizontalOnly) {
+					return true
+				}
+			}
+
+			return false
+		})
+		if scroll, ok := co.(*intwidget.Scroll); ok {
+			scroll.Scrolled(&fyne.ScrollEvent{Scrolled: fyne.Delta{DX: offset.DX, DY: 0}})
+		}
+	}
+
+	if deltaY != 0 {
+		co, _, _ := c.findObjectAtPositionMatching(pos, func(object fyne.CanvasObject) bool {
+			if scroll, ok := object.(*intwidget.Scroll); ok {
+				if scroll.Scrollable(intwidget.ScrollVerticalOnly) {
+					return true
+				}
+			}
+
+			return false
+		})
+		if scroll, ok := co.(*intwidget.Scroll); ok {
+			scroll.Scrolled(&fyne.ScrollEvent{Scrolled: fyne.Delta{DX: 0, DY: offset.DY}})
+		}
+	}
 
 	if c.touched[tapID] != nil {
 		if touch, ok := co.(mobile.Touchable); !ok || c.touched[tapID] != touch {

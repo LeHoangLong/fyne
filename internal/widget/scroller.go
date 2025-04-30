@@ -503,6 +503,29 @@ func (s *Scroll) Scrolled(ev *fyne.ScrollEvent) {
 	}
 }
 
+func (s *Scroll) Scrollable(direction ScrollDirection) bool {
+	size := s.Size()
+	contentSize := s.Content.Size()
+	if direction == ScrollHorizontalOnly {
+		if contentSize.Width <= size.Width {
+			if s.Offset.X != 0 {
+				s.Offset.X = 0
+				return true
+			}
+			return false
+		}
+	} else if direction == ScrollVerticalOnly {
+		if contentSize.Height <= size.Height {
+			if s.Offset.Y != 0 {
+				s.Offset.Y = 0
+				return true
+			}
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Scroll) scrollBy(dx, dy float32) {
 	min := s.Content.MinSize()
 	size := s.Size()
