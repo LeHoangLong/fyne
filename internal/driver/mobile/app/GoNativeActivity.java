@@ -47,7 +47,7 @@ public class GoNativeActivity extends NativeActivity {
     private native void setDarkMode(boolean dark);
 
 	private EditText mTextEdit;
-	private boolean ignoreKey = false;
+    private boolean ignoreKey = false;
 	private boolean keyboardUp = false;
 
 	public GoNativeActivity() {
@@ -257,14 +257,20 @@ public class GoNativeActivity extends NativeActivity {
                 addContentView(mTextEdit, mEditTextLayoutParams);
 
                 // always place one character so all keyboards can send backspace
+                ignoreKey = true;
                 mTextEdit.setText("0");
                 mTextEdit.setSelection(mTextEdit.getText().length());
+                ignoreKey = false;
 
                 mTextEdit.addTextChangedListener(new TextWatcher() {
                     @Override
                     public void onTextChanged(CharSequence s, int start, int before, int count) {
                         if (ignoreKey) {
                             return;
+                        }
+                        if (start == 0) {
+                            start = 1;
+                            count = count - 1;
                         }
                         if (count > 0) {
                             keyboardTyped(s.subSequence(start,start+count).toString());
