@@ -32,6 +32,16 @@ func NewGridLayoutWithColumns(cols int) fyne.Layout {
 	return &gridLayout{Cols: cols, Padding: theme.Padding()}
 }
 
+type NewGridLayoutOpts struct {
+	ColsOrRows int
+	Vertical   bool
+	Padding    float32
+}
+
+func NewGridLayoutWithOptions(opts NewGridLayoutOpts) fyne.Layout {
+	return &gridLayout{Cols: opts.ColsOrRows, vertical: opts.Vertical, Padding: opts.Padding}
+}
+
 // NewGridLayoutWithRows returns a new grid layout that specifies a row count that creates new rows as required.
 func NewGridLayoutWithRows(rows int) fyne.Layout {
 	return &gridLayout{Cols: rows, vertical: true, Padding: theme.Padding()}
