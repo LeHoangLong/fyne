@@ -79,7 +79,7 @@ func getLeading(size float64, offset int, padding float32) float32 {
 // Get the trailing (bottom or right) edge of a grid cell.
 // size is the ideal cell size and the offset is which col or row its on.
 func getTrailing(size float64, offset int, padding float32) float32 {
-	return getLeading(size, offset+1, padding)
+	return getLeading(size, offset+1, padding) - padding
 }
 
 // Layout is called to pack all child objects into a specified size.
