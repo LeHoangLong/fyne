@@ -13,11 +13,12 @@ var _ fyne.Layout = (*gridLayout)(nil)
 type gridLayout struct {
 	Cols            int
 	vertical, adapt bool
+	Padding         float32
 }
 
 // NewAdaptiveGridLayout returns a new grid layout which uses columns when horizontal but rows when vertical.
 func NewAdaptiveGridLayout(rowcols int) fyne.Layout {
-	return &gridLayout{Cols: rowcols, adapt: true}
+	return &gridLayout{Cols: rowcols, adapt: true, Padding: theme.Padding()}
 }
 
 // NewGridLayout returns a grid layout arranged in a specified number of columns.
@@ -28,12 +29,12 @@ func NewGridLayout(cols int) fyne.Layout {
 
 // NewGridLayoutWithColumns returns a new grid layout that specifies a column count and wrap to new rows when needed.
 func NewGridLayoutWithColumns(cols int) fyne.Layout {
-	return &gridLayout{Cols: cols}
+	return &gridLayout{Cols: cols, Padding: theme.Padding()}
 }
 
 // NewGridLayoutWithRows returns a new grid layout that specifies a row count that creates new rows as required.
 func NewGridLayoutWithRows(rows int) fyne.Layout {
-	return &gridLayout{Cols: rows, vertical: true}
+	return &gridLayout{Cols: rows, vertical: true, Padding: theme.Padding()}
 }
 
 func (g *gridLayout) horizontal() bool {
@@ -60,15 +61,15 @@ func (g *gridLayout) countRows(objects []fyne.CanvasObject) int {
 
 // Get the leading (top or left) edge of a grid cell.
 // size is the ideal cell size and the offset is which col or row its on.
-func getLeading(size float64, offset int) float32 {
-	ret := (size + float64(theme.Padding())) * float64(offset)
+func getLeading(size float64, offset int, padding float32) float32 {
+	ret := (size + float64(padding)) * float64(offset)
 	return float32(ret)
 }
 
 // Get the trailing (bottom or right) edge of a grid cell.
 // size is the ideal cell size and the offset is which col or row its on.
-func getTrailing(size float64, offset int) float32 {
-	return getLeading(size, offset+1) - theme.Padding()
+func getTrailing(size float64, offset int, padding float32) float32 {
+	return getLeading(size, offset+1, padding)
 }
 
 // Layout is called to pack all child objects into a specified size.
@@ -77,16 +78,14 @@ func getTrailing(size float64, offset int) float32 {
 func (g *gridLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 	rows := g.countRows(objects)
 
-	padding := theme.Padding()
-
 	primaryObjects := rows
 	secondaryObjects := g.Cols
 	if g.horizontal() {
 		primaryObjects, secondaryObjects = secondaryObjects, primaryObjects
 	}
 
-	padWidth := float32(primaryObjects-1) * padding
-	padHeight := float32(secondaryObjects-1) * padding
+	padWidth := float32(primaryObjects-1) * g.Padding
+	padHeight := float32(secondaryObjects-1) * g.Padding
 	cellWidth := float64(size.Width-padWidth) / float64(primaryObjects)
 	cellHeight := float64(size.Height-padHeight) / float64(secondaryObjects)
 
@@ -97,10 +96,10 @@ func (g *gridLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 			continue
 		}
 
-		x1 := getLeading(cellWidth, col)
-		y1 := getLeading(cellHeight, row)
-		x2 := getTrailing(cellWidth, col)
-		y2 := getTrailing(cellHeight, row)
+		x1 := getLeading(cellWidth, col, g.Padding)
+		y1 := getLeading(cellHeight, row, g.Padding)
+		x2 := getTrailing(cellWidth, col, g.Padding)
+		y2 := getTrailing(cellHeight, row, g.Padding)
 
 		child.Move(fyne.NewPos(x1, y1))
 		child.Resize(fyne.NewSize(x2-x1, y2-y1))
@@ -139,8 +138,6 @@ func (g *gridLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 		minSize = minSize.Max(child.MinSize())
 	}
 
-	padding := theme.Padding()
-
 	primaryObjects := rows
 	secondaryObjects := g.Cols
 	if g.horizontal() {
@@ -149,8 +146,8 @@ func (g *gridLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 
 	width := minSize.Width * float32(primaryObjects)
 	height := minSize.Height * float32(secondaryObjects)
-	xpad := padding * fyne.Max(float32(primaryObjects-1), 0)
-	ypad := padding * fyne.Max(float32(secondaryObjects-1), 0)
+	xpad := g.Padding * fyne.Max(float32(primaryObjects-1), 0)
+	ypad := g.Padding * fyne.Max(float32(secondaryObjects-1), 0)
 
 	return fyne.NewSize(width+xpad, height+ypad)
 }
