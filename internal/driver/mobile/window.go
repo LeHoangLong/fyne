@@ -19,6 +19,8 @@ type window struct {
 	onCloseIntercepted func()
 	isChild            bool
 
+	menuButton *menuButton
+
 	clipboard fyne.Clipboard
 	canvas    *canvas
 	icon      fyne.Resource
@@ -92,6 +94,15 @@ func (w *window) MainMenu() *fyne.MainMenu {
 
 func (w *window) SetMainMenu(menu *fyne.MainMenu) {
 	w.menu = menu
+	if w.menuButton != nil {
+		if menu == nil {
+			w.menuButton.Hide()
+		} else {
+			w.menuButton.Show()
+		}
+		w.menuButton.menu = menu
+		w.menuButton.Refresh()
+	}
 }
 
 func (w *window) SetOnClosed(callback func()) {
@@ -112,6 +123,8 @@ func (w *window) Show() {
 	if menu == nil {
 		menuButton.Hide()
 	}
+
+	w.menuButton = menuButton
 
 	if w.isChild {
 		exit := widget.NewButtonWithIcon("", theme.CancelIcon(), func() {
