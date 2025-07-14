@@ -403,13 +403,14 @@ void showFileOpenPicker(char* mimes, char *exts) {
     });
 }
 
-void showFileSavePicker(char* mimes, char *exts) {
+void showFileSavePicker(char* mimes, char *exts, char *filename) {
     GoAppAppDelegate *appDelegate = (GoAppAppDelegate *)[[UIApplication sharedApplication] delegate];
 
     NSMutableArray *docTypes = docTypesForMimeExts(mimes, exts);
 
+    NSString *nsFilename = [NSString stringWithUTF8String:filename];
     NSURL *temporaryDirectoryURL = [NSURL fileURLWithPath: NSTemporaryDirectory() isDirectory: YES];
-    NSURL *temporaryFileURL = [temporaryDirectoryURL URLByAppendingPathComponent:@"filename"];
+    NSURL *temporaryFileURL = [temporaryDirectoryURL URLByAppendingPathComponent:nsFilename];
 
     char* bytes = "\n";
     NSData *data = [NSData dataWithBytes:bytes length:1];

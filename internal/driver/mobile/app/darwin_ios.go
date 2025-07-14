@@ -29,7 +29,7 @@ void showKeyboard(int keyboardType);
 void hideKeyboard();
 
 void showFileOpenPicker(char* mimes, char *exts);
-void showFileSavePicker(char* mimes, char *exts);
+void showFileSavePicker(char* mimes, char *exts, char *filename);
 void closeFileResource(void* urlPtr);
 */
 import "C"
@@ -323,5 +323,5 @@ func driverShowFileSavePicker(callback func(string, func()), filter *FileFilter,
 	defer C.free(unsafe.Pointer(mimeStr))
 	defer C.free(unsafe.Pointer(extStr))
 
-	C.showFileSavePicker(mimeStr, extStr)
+	C.showFileSavePicker(mimeStr, extStr, C.CString(filename))
 }
