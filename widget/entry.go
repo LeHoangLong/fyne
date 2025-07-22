@@ -546,6 +546,27 @@ func (e *Entry) setText(text string, fromBinding bool) {
 	e.propertyLock.Unlock()
 }
 
+// SetText manually sets the text of the Entry to the given text value.
+// Calling SetText resets all undo history.
+func (e *Entry) SetTextWithHistoryAndCursor(text string, pos int) {
+	e.Theme() // setup theme cache before locking
+	e.updateTextAndRefresh(text, false)
+	e.updateCursorAndSelection()
+
+	e.CursorRow, e.CursorColumn = e.rowColFromTextPos(pos)
+	e.Refresh()
+}
+
+func (e *Entry) GetCursorOffset() (int, int) {
+	selectionStart, selectionEnd := e.selection()
+	if selectionStart != -1 && selectionEnd != -1 {
+		return selectionStart, selectionEnd
+	}
+
+	pos := e.cursorTextPos()
+	return pos, pos
+}
+
 // Append appends the text to the end of the entry.
 //
 // Since: 2.4

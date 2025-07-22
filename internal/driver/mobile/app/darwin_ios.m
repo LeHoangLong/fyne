@@ -22,6 +22,7 @@ static CGFloat keyboardHeight;
 @end
 
 @interface GoInputView : UITextField<UITextFieldDelegate>
+@property (nonatomic, strong) NSString *currentDisplayText;
 @end
 
 @interface GoAppAppDelegate : UIResponder<UIApplicationDelegate>
@@ -238,13 +239,53 @@ static void sendTouches(int change, NSSet* touches) {
     return YES;
 }
 
-- (void)deleteBackward {
-    keyboardDelete();
-}
+// Add this as an instance variable or property in your class
 
--(BOOL)textField:(UITextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string {
-    keyboardTyped((char *)[string UTF8String]);
-    return NO;
+- (BOOL)textField:(UITextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string {
+    /*
+    NSUInteger originalLength = string.length;
+    NSLog(@"SIGGRAPH Replacement String: %@", string);
+    NSLog(@"SIGGRAPH Range: Location = %lu, Length = %lu", (unsigned long)range.location, (unsigned long)range.length);
+    NSLog(@"SIGGRAPH Current Text: %@", textField.text);
+    NSLog(@"SIGGRAPH display Text: %@", self.currentDisplayText);
+    
+    // Get the new text that will result from this change
+    NSString *newText = [textField.text stringByReplacingCharactersInRange:range withString:string];
+    NSLog(@"SIGGRAPH new Text: %@", newText);
+    NSLog(@"SIGGRAPH originalLength: %u", originalLength);
+
+    // Find the last index where both strings match
+    NSUInteger lastMatchingIndex = 0;
+    NSUInteger minLength = MIN(self.currentDisplayText.length, newText.length);
+    
+    for (NSUInteger i = 0; i < minLength; i++) {
+        if ([self.currentDisplayText characterAtIndex:i] == [newText characterAtIndex:i]) {
+            lastMatchingIndex = i + 1;
+        } else {
+            break;
+        }
+    }
+    
+    // Calculate how many deletions we need
+    NSUInteger deletionsNeeded = self.currentDisplayText.length - lastMatchingIndex;
+    for (NSUInteger i = 0; i < deletionsNeeded; i++) {
+        keyboardDelete();
+    }
+    
+    // Insert the new characters from the matching point
+    if (lastMatchingIndex < newText.length) {
+        NSString *charsToInsert = [newText substringFromIndex:lastMatchingIndex];
+        keyboardTyped((char *)[charsToInsert UTF8String]);
+    }
+    
+    // Update our current display text
+    self.currentDisplayText = newText;
+    if (originalLength == 0) {
+        textField.text = newText;
+        return NO;
+    }
+    */
+    return YES;
 }
 
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
@@ -402,6 +443,153 @@ void showFileOpenPicker(char* mimes, char *exts) {
         [appDelegate.controller presentViewController:documentPicker animated:YES completion:nil];
     });
 }
+
+char* getCurrentTextField() {
+    GoAppAppDelegate *appDelegate = (GoAppAppDelegate *)[[UIApplication sharedApplication] delegate];
+    GoAppAppController *controller = [appDelegate controller];
+    return (char *)[controller.inputView.text UTF8String];
+}
+
+int getCurrentCursorOffsetStart() {
+    GoAppAppDelegate *appDelegate = (GoAppAppDelegate *)[[UIApplication sharedApplication] delegate];
+    GoAppAppController *controller = [appDelegate controller];
+    UITextField *textField = controller.inputView;
+    if (!textField || ![textField isKindOfClass:[UITextField class]]) {
+        return 0;
+    }
+
+    UITextRange *selectedRange = textField.selectedTextRange;
+    if (selectedRange == nil) {
+        return 0;
+    }
+
+    UITextPosition *cursorPosition = selectedRange.start;
+    NSInteger cursorOffset = [textField offsetFromPosition:textField.beginningOfDocument 
+                                          toPosition:cursorPosition];
+
+    return (int)cursorOffset;
+}
+
+
+int getCurrentCursorOffsetEnd() {
+    GoAppAppDelegate *appDelegate = (GoAppAppDelegate *)[[UIApplication sharedApplication] delegate];
+    GoAppAppController *controller = [appDelegate controller];
+    UITextField *textField = controller.inputView;
+    if (!textField || ![textField isKindOfClass:[UITextField class]]) {
+        return 0;
+    }
+
+    UITextRange *selectedRange = textField.selectedTextRange;
+    if (selectedRange == nil) {
+        return 0;
+    }
+
+    UITextPosition *cursorPosition = selectedRange.end;
+    NSInteger cursorOffset = [textField offsetFromPosition:textField.beginningOfDocument 
+                                          toPosition:cursorPosition];
+
+    return (int)cursorOffset;
+}
+
+void setCurrentCursorOffset(int offsetStart, int offsetEnd) {
+    GoAppAppDelegate *appDelegate = (GoAppAppDelegate *)[[UIApplication sharedApplication] delegate];
+    GoAppAppController *controller = [appDelegate controller];
+    if (controller.inputView == nil) {
+        return;
+    }
+
+    UITextField *textField = controller.inputView;
+    if (!textField || ![textField isKindOfClass:[UITextField class]]) {
+        return;
+    }
+
+    void (^setCursorBlock)(void) = ^{
+        @try {
+            // Re-check text field validity on main thread
+            if (!textField || ![textField isKindOfClass:[UITextField class]]) {
+                NSLog(@"SIGGRAPH ERROR: Invalid text field");
+                return;
+            }
+            
+            // Validate offset
+            if (offsetStart < 0 || offsetStart > textField.text.length) {
+                NSLog(@"SIGGRAPH ERROR: Invalid offset %d for text length %lu", 
+                      offsetStart, (unsigned long)textField.text.length);
+                return;
+            }
+
+            if (offsetEnd < 0 || offsetEnd > textField.text.length) {
+                NSLog(@"SIGGRAPH ERROR: Invalid offset %d for text length %lu", 
+                      offsetEnd, (unsigned long)textField.text.length);
+                return;
+            }
+            
+            UITextPosition *positionStart = [textField positionFromPosition:textField.beginningOfDocument offset:offsetStart];
+            if (!positionStart) {
+                NSLog(@"SIGGRAPH ERROR: Failed to create position start");
+                return;
+            }
+
+
+            UITextPosition *positionEnd = [textField positionFromPosition:textField.beginningOfDocument offset:offsetEnd];
+            if (!positionEnd) {
+                NSLog(@"SIGGRAPH ERROR: Failed to create position end");
+                return;
+            }
+            
+            UITextRange *range = [textField textRangeFromPosition:positionStart toPosition:positionEnd];
+            if (!range) {
+                NSLog(@"SIGGRAPH ERROR: Failed to create range");
+                return;
+            }
+            
+            textField.selectedTextRange = range;
+        } @catch (NSException *exception) {
+            NSLog(@"SIGGRAPH EXCEPTION: %@", exception);
+        }
+    };
+    
+    // Execute on main thread
+    if ([NSThread isMainThread]) {
+        setCursorBlock();
+    } else {
+        dispatch_async(dispatch_get_main_queue(), setCursorBlock);
+    }
+}
+
+void setCurrentTextField(char *value) {
+    NSString *nsString = [NSString stringWithUTF8String:value];
+     // Create the block that will do the actual update
+    void (^updateBlock)(void) = ^{
+        @try {
+            GoAppAppDelegate *appDelegate = (GoAppAppDelegate *)[[UIApplication sharedApplication] delegate];
+            GoAppAppController *controller = [appDelegate controller];
+            
+
+            UITextField *textField = controller.inputView;
+
+            // Check if textField is still valid
+            if (!textField || ![textField isKindOfClass:[UITextField class]]) {
+                NSLog(@"SIGGRAPH ERROR: Invalid text field");
+                return;
+            }
+            
+            // Update the text
+            textField.text = nsString ?: @"";
+            NSLog(@"SIGGRAPH Text updated to: '%@'", textField.text);
+        } @catch (NSException *exception) {
+            NSLog(@"SIGGRAPH EXCEPTION: %@", exception);
+        }
+    };
+    
+    // Execute on main thread
+    if ([NSThread isMainThread]) {
+        updateBlock();
+    } else {
+        dispatch_async(dispatch_get_main_queue(), updateBlock);
+    }
+}
+
 
 void showFileSavePicker(char* mimes, char *exts, char *filename) {
     GoAppAppDelegate *appDelegate = (GoAppAppDelegate *)[[UIApplication sharedApplication] delegate];

@@ -401,3 +401,19 @@ func convVirtualKeyCode(vkcode uint16) key.Code {
 	// TODO key.CodeRightGUI
 	return key.CodeUnknown
 }
+
+func UseExperimentalKeyboardV2() bool {
+	return false
+}
+
+func GetCurrentKeyboardValue() string {
+	return ""
+}
+
+func SetCurrentKeyboardValue(val string) {}
+
+func GetCurrentCursorOffset() (int, int) {
+	return 0, 0
+}
+
+func SetCurrentCursorOffset(offsetStart int, offsetEnd int) {}

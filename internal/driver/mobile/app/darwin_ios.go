@@ -31,6 +31,11 @@ void hideKeyboard();
 void showFileOpenPicker(char* mimes, char *exts);
 void showFileSavePicker(char* mimes, char *exts, char *filename);
 void closeFileResource(void* urlPtr);
+char* getCurrentTextField();
+void setCurrentTextField(char *value);
+int getCurrentCursorOffsetStart();
+int getCurrentCursorOffsetEnd();
+void setCurrentCursorOffset(int offsetStart, int offsetEnd);
 */
 import "C"
 import (
@@ -324,4 +329,27 @@ func driverShowFileSavePicker(callback func(string, func()), filter *FileFilter,
 	defer C.free(unsafe.Pointer(extStr))
 
 	C.showFileSavePicker(mimeStr, extStr, C.CString(filename))
+}
+
+func UseExperimentalKeyboardV2() bool {
+	return true
+}
+
+func GetCurrentKeyboardValue() string {
+	text := C.getCurrentTextField()
+	return C.GoString(text)
+}
+
+func SetCurrentKeyboardValue(val string) {
+	str := C.CString(val)
+	defer C.free(unsafe.Pointer(str))
+	C.setCurrentTextField(str)
+}
+
+func GetCurrentCursorOffset() (int, int) {
+	return int(C.getCurrentCursorOffsetStart()), int(C.getCurrentCursorOffsetEnd())
+}
+
+func SetCurrentCursorOffset(offsetStart int, offsetEnd int) {
+	C.setCurrentCursorOffset(C.int(offsetStart), C.int(offsetEnd))
 }

@@ -1,6 +1,7 @@
 package mobile
 
 import (
+	"log"
 	"math"
 	"runtime"
 	"strconv"
@@ -28,6 +29,7 @@ import (
 	pgl "fyne.io/fyne/v2/internal/painter/gl"
 	"fyne.io/fyne/v2/internal/scale"
 	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 )
 
 const (
@@ -79,6 +81,8 @@ func (d *driver) CreateWindow(title string) fyne.Window {
 	c.setContent(&fynecanvas.Rectangle{FillColor: theme.Color(theme.ColorNameBackground)})
 	c.SetPainter(pgl.NewPainter(c, ret))
 	d.windows = append(d.windows, ret)
+
+	d.loopKeyboard()
 	return ret
 }
 
@@ -536,6 +540,52 @@ func runeToPrintable(r rune) rune {
 	}
 
 	return 0
+}
+
+func (d *driver) loopKeyboard() {
+	log.Println("SIGGRAPH loop")
+	go func() {
+		if !app.UseExperimentalKeyboardV2() {
+			return
+		}
+		var canvasInst *canvas
+		var previousFocused fyne.Focusable
+		for {
+			time.Sleep(20 * time.Millisecond)
+			if canvasInst == nil {
+				canvasInst = d.currentWindow().canvas
+				if canvasInst == nil {
+					continue
+				}
+			}
+
+			focused := canvasInst.Focused()
+			if focused != nil {
+				entry, ok := focused.(*widget.Entry)
+				if !ok {
+					continue
+				}
+
+				if previousFocused != focused {
+					previousFocused = focused
+					app.SetCurrentKeyboardValue(entry.Text)
+					time.Sleep(50 * time.Millisecond)
+					continue
+				}
+
+				text := app.GetCurrentKeyboardValue()
+				offsetStart, offsetEnd := app.GetCurrentCursorOffset()
+				if entry.Text != text {
+					entry.SetTextWithHistoryAndCursor(text, offsetStart)
+				} else {
+					currentEntryOffsetStart, currentEntryOffsetEnd := entry.GetCursorOffset()
+					if currentEntryOffsetStart != offsetStart || currentEntryOffsetEnd != offsetEnd {
+						app.SetCurrentCursorOffset(currentEntryOffsetStart, currentEntryOffsetEnd)
+					}
+				}
+			}
+		}
+	}()
 }
 
 func (d *driver) typeDownCanvas(canvas *canvas, r rune, code key.Code, mod key.Modifiers) {
