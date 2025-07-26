@@ -63,6 +63,14 @@ func (p *PopUp) Show() {
 	p.BaseWidget.Show()
 }
 
+func (p *PopUp) ShowWithoutRefresh() {
+	if !p.overlayShown {
+		p.Canvas.Overlays().Add(p)
+		p.overlayShown = true
+	}
+	p.BaseWidget.Show()
+}
+
 // ShowAtPosition shows this pop-up at the given position.
 func (p *PopUp) ShowAtPosition(pos fyne.Position) {
 	p.Move(pos)

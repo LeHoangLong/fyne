@@ -36,6 +36,8 @@ var _ mobile.Keyboardable = (*Entry)(nil)
 var _ mobile.Touchable = (*Entry)(nil)
 var _ fyne.Tabbable = (*Entry)(nil)
 
+var DefaultEntryFocusNextOnFinish = false
+
 // Entry widget allows simple text to be input when focused.
 type Entry struct {
 	DisableableWidget
@@ -106,11 +108,13 @@ type Entry struct {
 	// doubleTappedAtUnixMillis stores the time the entry was last DoubleTapped
 	// used for deciding whether the next MouseDown/TouchDown is a triple-tap or not
 	doubleTappedAtUnixMillis int64
+
+	FocusNextOnFinish bool
 }
 
 // NewEntry creates a new single line entry widget.
 func NewEntry() *Entry {
-	e := &Entry{Wrapping: fyne.TextWrap(fyne.TextTruncateClip)}
+	e := &Entry{Wrapping: fyne.TextWrap(fyne.TextTruncateClip), FocusNextOnFinish: DefaultEntryFocusNextOnFinish}
 	e.ExtendBaseWidget(e)
 	return e
 }
@@ -1628,10 +1632,22 @@ func (e *Entry) typedKeyReturn(provider *RichText, multiLine bool) {
 		if onSubmitted != nil {
 			onSubmitted(text)
 		}
+
+		if e.FocusNextOnFinish {
+			fyne.CurrentApp().Driver().CanvasForObject(e).FocusNext()
+		} else {
+			fyne.CurrentApp().Driver().CanvasForObject(e).Unfocus()
+		}
 		return
 	} else if selectDown && onSubmitted != nil {
 		// Multiline supports newline, unless shift is held and OnSubmitted is set.
 		onSubmitted(text)
+
+		if e.FocusNextOnFinish {
+			fyne.CurrentApp().Driver().CanvasForObject(e).FocusNext()
+		} else {
+			fyne.CurrentApp().Driver().CanvasForObject(e).Unfocus()
+		}
 		return
 	}
 	e.propertyLock.Lock()

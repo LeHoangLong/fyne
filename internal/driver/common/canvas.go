@@ -155,13 +155,14 @@ func (c *Canvas) EnsureMinSize() bool {
 
 // Focus makes the provided item focused.
 func (c *Canvas) Focus(obj fyne.Focusable) {
+
 	focusMgr := c.focusManager()
 	if focusMgr != nil && focusMgr.Focus(obj) { // fast path – probably >99.9% of all cases
 		if c.OnFocus != nil {
 			c.OnFocus(obj)
 
 			if co, ok := obj.(fyne.CanvasObject); ok {
-				c.scrollToFocused(co)
+				c.ScrollToFocused(co)
 			}
 		}
 		return
@@ -187,7 +188,7 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 				c.overlays.SetFocusManagers(focusMgrs)
 
 				if co, ok := obj.(fyne.CanvasObject); ok {
-					c.scrollToFocused(co)
+					c.ScrollToFocused(co)
 				}
 
 				return
@@ -198,9 +199,9 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 	fyne.LogError("Failed to focus object which is not part of the canvas’ content, menu or overlays.", nil)
 }
 
-func (c *Canvas) scrollToFocused(obj fyne.CanvasObject) {
+func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject) {
 	var horizontalScrollAncestor, verticalScrollAncestor *widget.Scroll
-	_, areaSize := fyne.CurrentApp().Driver().CanvasForObject(obj).InteractiveArea()
+	areaPos, areaSize := fyne.CurrentApp().Driver().CanvasForObject(obj).InteractiveArea()
 
 	c.WalkTrees(
 		func(rcn *RenderCacheNode, p fyne.Position) {},
@@ -223,48 +224,51 @@ func (c *Canvas) scrollToFocused(obj fyne.CanvasObject) {
 				}
 
 				if verticalScrollAncestor != nil || horizontalScrollAncestor != nil {
-					var dx, dy float32
+					var targetX, targetY float32
 
 					if verticalScrollAncestor != nil {
-						scrollPos := driver.AbsolutePositionForObject(verticalScrollAncestor, c.ObjectTrees())
 						objPos := driver.AbsolutePositionForObject(thisNodeObj, c.ObjectTrees())
-						relPos := objPos.Subtract(scrollPos)
-						dy = -relPos.Y + areaSize.Height/2
+						middle := areaSize.Height/2 + areaPos.Y
+
+						targetY = verticalScrollAncestor.Offset.Y + (objPos.Y - middle)
+
 					}
 
 					if horizontalScrollAncestor != nil {
-						scrollPos := driver.AbsolutePositionForObject(horizontalScrollAncestor, c.ObjectTrees())
 						objPos := driver.AbsolutePositionForObject(thisNodeObj, c.ObjectTrees())
-						relPos := objPos.Subtract(scrollPos)
-						dx = -relPos.X + areaSize.Width/2
+						middle := areaSize.Width/2 + areaPos.X
+
+						targetX = verticalScrollAncestor.Offset.X + (objPos.X - middle)
 					}
 
-					prevX := float32(0)
-					prevY := float32(0)
+					currentX := float32(0)
+					currentY := float32(0)
+					if horizontalScrollAncestor != nil {
+						currentX = horizontalScrollAncestor.Offset.X
+					}
+					if verticalScrollAncestor != nil {
+						currentY = verticalScrollAncestor.Offset.Y
+					}
 
-					anim := fyne.NewAnimation(100*time.Millisecond, func(f float32) {
-						if horizontalScrollAncestor != nil {
-							horizontalScrollAncestor.Scrolled(&fyne.ScrollEvent{
-								Scrolled: fyne.Delta{
-									DX: dx*f - prevX,
-									DY: 0,
-								},
-							})
-						}
+					totalDiffX := targetX - currentX
+					totalDiffY := targetY - currentY
 
-						if verticalScrollAncestor != nil {
-							verticalScrollAncestor.Scrolled(&fyne.ScrollEvent{
-								Scrolled: fyne.Delta{
-									DX: 0,
-									DY: dy*f - prevY,
-								},
-							})
-						}
-						prevX = dx * f
-						prevY = dy * f
-					})
-					anim.Curve = fyne.AnimationLinear
-					anim.Start()
+					if horizontalScrollAncestor != nil || verticalScrollAncestor != nil {
+
+						anim := fyne.NewAnimation(100*time.Millisecond, func(f float32) {
+							if horizontalScrollAncestor != nil {
+								horizontalScrollAncestor.Offset.X = currentX + totalDiffX*f
+								verticalScrollAncestor.Base.Refresh()
+							}
+
+							if verticalScrollAncestor != nil {
+								verticalScrollAncestor.Offset.Y = currentY + totalDiffY*f
+								verticalScrollAncestor.Base.Refresh()
+							}
+						})
+						anim.Curve = fyne.AnimationLinear
+						anim.Start()
+					}
 				}
 			}
 		},
@@ -277,6 +281,7 @@ func (c *Canvas) Focused() fyne.Focusable {
 	if mgr == nil {
 		return nil
 	}
+
 	return mgr.Focused()
 }
 
@@ -306,7 +311,11 @@ func (c *Canvas) FocusNext() {
 	if mgr == nil {
 		return
 	}
-	mgr.FocusNext()
+
+	next := mgr.NextInChain(mgr.Focused())
+	if next != nil {
+		c.Focus(next)
+	}
 }
 
 // FocusPrevious focuses the previous focusable item.

@@ -90,7 +90,7 @@ func (f *FocusManager) FocusLost() {
 func (f *FocusManager) FocusNext() {
 	f.Lock()
 	defer f.Unlock()
-	f.focus(f.nextInChain(f.focused))
+	f.focus(f.NextInChain(f.focused))
 }
 
 // FocusPrevious will find the item before the current that can be focused and focus it.
@@ -115,7 +115,7 @@ func (f *FocusManager) focus(obj fyne.Focusable) {
 	}
 }
 
-func (f *FocusManager) nextInChain(current fyne.Focusable) fyne.Focusable {
+func (f *FocusManager) NextInChain(current fyne.Focusable) fyne.Focusable {
 	return f.nextWithWalker(current, driver.WalkVisibleObjectTree)
 }
 

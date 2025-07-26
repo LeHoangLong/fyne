@@ -207,6 +207,15 @@ func (d *driver) Run() {
 					}
 					// make sure that we paint on the next frame
 					c.Content().Refresh()
+
+					if insetChange {
+						focused := current.canvas.Focused()
+						if focused != nil {
+							if co, ok := focused.(fyne.CanvasObject); ok {
+								current.canvas.ScrollToFocused(co)
+							}
+						}
+					}
 				case paint.Event:
 					d.handlePaint(e, current)
 				case touch.Event:

@@ -94,14 +94,14 @@ public class GoNativeActivity extends NativeActivity {
                         imeOptions = EditorInfo.IME_FLAG_NO_ENTER_ACTION;
                         break;
                     case SINGLELINE_KEYBOARD_CODE:
-                        imeOptions = EditorInfo.IME_ACTION_DONE;
+                        // imeOptions = EditorInfo.IME_ACTION_DONE;
                         break;
                     case NUMBER_KEYBOARD_CODE:
-                        imeOptions = EditorInfo.IME_ACTION_DONE;
+                        // imeOptions = EditorInfo.IME_ACTION_DONE;
                         inputType |= InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_NORMAL;
                         break;
                     case PASSWORD_KEYBOARD_CODE:
-                        imeOptions = EditorInfo.IME_ACTION_DONE;
+                        // imeOptions = EditorInfo.IME_ACTION_DONE;
                         inputType |= InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD;
                     default:
                         Log.e("Fyne", "unknown keyboard type, use default");
