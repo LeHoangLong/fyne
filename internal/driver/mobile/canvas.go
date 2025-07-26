@@ -49,10 +49,18 @@ type canvas struct {
 
 func newCanvas(dev fyne.Device) fyne.Canvas {
 	d, _ := dev.(*device)
-	ret := &canvas{
+	var ret *canvas
+	ret = &canvas{
 		Canvas: common.Canvas{
-			OnFocus:   handleKeyboard,
-			OnUnfocus: hideVirtualKeyboard,
+			OnFocus: handleKeyboard,
+			OnUnfocus: func() {
+				nextFocused := ret.Focused()
+				if nextFocused == nil {
+					hideVirtualKeyboard()
+				} else if _, ok := nextFocused.(*widget.Entry); !ok {
+					hideVirtualKeyboard()
+				}
+			},
 		},
 		device:         d,
 		lastTapDown:    make(map[int]time.Time),
@@ -237,7 +245,7 @@ func (c *canvas) tapDown(pos fyne.Position, tapID int) {
 	c.lastTapId = tapID
 	c.dragging = nil
 
-	co, objPos, layer := c.findObjectAtPositionMatching(pos, func(object fyne.CanvasObject) bool {
+	co, objPos, _ := c.findObjectAtPositionMatching(pos, func(object fyne.CanvasObject) bool {
 		switch object.(type) {
 		case mobile.Touchable, fyne.Focusable:
 			return true
@@ -252,12 +260,6 @@ func (c *canvas) tapDown(pos fyne.Position, tapID int) {
 		touchEv.AbsolutePosition = pos
 		wid.TouchDown(touchEv)
 		c.touched[tapID] = wid
-	}
-
-	if layer != 1 { // 0 - overlay, 1 - window head / menu, 2 - content
-		if wid, ok := co.(fyne.Focusable); !ok || wid != c.Focused() {
-			c.Unfocus()
-		}
 	}
 }
 
@@ -365,7 +367,7 @@ func (c *canvas) tapUp(pos fyne.Position, tapID int,
 		return
 	}
 
-	co, objPos, _ := c.findObjectAtPositionMatching(pos, func(object fyne.CanvasObject) bool {
+	co, objPos, layer := c.findObjectAtPositionMatching(pos, func(object fyne.CanvasObject) bool {
 		if _, ok := object.(fyne.Tappable); ok {
 			return true
 		} else if _, ok := object.(fyne.SecondaryTappable); ok {
@@ -410,6 +412,12 @@ func (c *canvas) tapUp(pos fyne.Position, tapID int,
 	} else {
 		if wid, ok := co.(fyne.SecondaryTappable); ok {
 			tapAltCallback(wid, ev)
+		}
+	}
+
+	if layer != 1 { // 0 - overlay, 1 - window head / menu, 2 - content
+		if wid, ok := co.(fyne.Focusable); !ok || wid != c.Focused() {
+			c.Unfocus()
 		}
 	}
 }

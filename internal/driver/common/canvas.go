@@ -250,6 +250,12 @@ func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject) {
 						currentY = verticalScrollAncestor.Offset.Y
 					}
 
+					if targetX < 0 {
+						targetX = 0
+					}
+					if targetY < 0 {
+						targetY = 0
+					}
 					totalDiffX := targetX - currentX
 					totalDiffY := targetY - currentY
 
