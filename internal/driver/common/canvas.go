@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -14,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/internal/cache"
 	"fyne.io/fyne/v2/internal/driver"
 	"fyne.io/fyne/v2/internal/painter/gl"
+	"fyne.io/fyne/v2/internal/widget"
 )
 
 // SizeableCanvas defines a canvas with size related functions.
@@ -157,6 +159,10 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 	if focusMgr != nil && focusMgr.Focus(obj) { // fast path – probably >99.9% of all cases
 		if c.OnFocus != nil {
 			c.OnFocus(obj)
+
+			if co, ok := obj.(fyne.CanvasObject); ok {
+				c.scrollToFocused(co)
+			}
 		}
 		return
 	}
@@ -165,7 +171,7 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 	focusMgrs := append([]*app.FocusManager{c.contentFocusMgr, c.menuFocusMgr}, c.overlays.ListFocusManagers()...)
 	c.RUnlock()
 
-	for _, mgr := range focusMgrs {
+	for i, mgr := range focusMgrs {
 		if mgr == nil {
 			continue
 		}
@@ -174,12 +180,95 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 				if c.OnFocus != nil {
 					c.OnFocus(obj)
 				}
+
+				focusMgrs = append(focusMgrs[:i], focusMgrs[i+1:]...)
+				focusMgrs = append(focusMgrs, mgr)
+
+				c.overlays.SetFocusManagers(focusMgrs)
+
+				if co, ok := obj.(fyne.CanvasObject); ok {
+					c.scrollToFocused(co)
+				}
+
 				return
 			}
 		}
 	}
 
 	fyne.LogError("Failed to focus object which is not part of the canvas’ content, menu or overlays.", nil)
+}
+
+func (c *Canvas) scrollToFocused(obj fyne.CanvasObject) {
+	var horizontalScrollAncestor, verticalScrollAncestor *widget.Scroll
+	_, areaSize := fyne.CurrentApp().Driver().CanvasForObject(obj).InteractiveArea()
+
+	c.WalkTrees(
+		func(rcn *RenderCacheNode, p fyne.Position) {},
+		func(rcn *RenderCacheNode, p fyne.Position) {
+			thisNodeObj := rcn.obj
+			if thisNodeObj == obj {
+				parent := rcn.parent
+				for parent != nil {
+					if scroll, ok := parent.obj.(*widget.Scroll); ok {
+						if verticalScrollAncestor == nil && scroll.Direction == widget.ScrollVerticalOnly {
+							verticalScrollAncestor = scroll
+						}
+
+						if horizontalScrollAncestor == nil && scroll.Direction == widget.ScrollHorizontalOnly {
+							horizontalScrollAncestor = scroll
+						}
+					}
+
+					parent = parent.parent
+				}
+
+				if verticalScrollAncestor != nil || horizontalScrollAncestor != nil {
+					var dx, dy float32
+
+					if verticalScrollAncestor != nil {
+						scrollPos := driver.AbsolutePositionForObject(verticalScrollAncestor, c.ObjectTrees())
+						objPos := driver.AbsolutePositionForObject(thisNodeObj, c.ObjectTrees())
+						relPos := objPos.Subtract(scrollPos)
+						dy = -relPos.Y + areaSize.Height/2
+					}
+
+					if horizontalScrollAncestor != nil {
+						scrollPos := driver.AbsolutePositionForObject(horizontalScrollAncestor, c.ObjectTrees())
+						objPos := driver.AbsolutePositionForObject(thisNodeObj, c.ObjectTrees())
+						relPos := objPos.Subtract(scrollPos)
+						dx = -relPos.X + areaSize.Width/2
+					}
+
+					prevX := float32(0)
+					prevY := float32(0)
+
+					anim := fyne.NewAnimation(100*time.Millisecond, func(f float32) {
+						if horizontalScrollAncestor != nil {
+							horizontalScrollAncestor.Scrolled(&fyne.ScrollEvent{
+								Scrolled: fyne.Delta{
+									DX: dx*f - prevX,
+									DY: 0,
+								},
+							})
+						}
+
+						if verticalScrollAncestor != nil {
+							verticalScrollAncestor.Scrolled(&fyne.ScrollEvent{
+								Scrolled: fyne.Delta{
+									DX: 0,
+									DY: dy*f - prevY,
+								},
+							})
+						}
+						prevX = dx * f
+						prevY = dy * f
+					})
+					anim.Curve = fyne.AnimationLinear
+					anim.Start()
+				}
+			}
+		},
+	)
 }
 
 // Focused returns the current focused object.

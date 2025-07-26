@@ -64,6 +64,13 @@ func (s *OverlayStack) ListFocusManagers() []*app.FocusManager {
 	return s.focusManagers
 }
 
+func (s *OverlayStack) SetFocusManagers(FocusManagers []*app.FocusManager) {
+	s.propertyLock.Lock()
+	defer s.propertyLock.Unlock()
+
+	s.focusManagers = FocusManagers
+}
+
 // Remove deletes an overlay and all overlays above it from the stack.
 //
 // Implements: fyne.OverlayStack
