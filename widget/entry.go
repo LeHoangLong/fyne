@@ -1963,9 +1963,8 @@ func (e *entryContent) CreateRenderer() fyne.WidgetRenderer {
 // Implements: fyne.Draggable
 func (e *entryContent) DragEnd() {
 	// we need to propagate the focus, top level widget handles focus APIs
-	e.entry.requestFocus()
-
-	e.entry.DragEnd()
+	// e.entry.requestFocus()
+	// e.entry.DragEnd()
 }
 
 // Dragged is called when the pointer moves while a button is held down.

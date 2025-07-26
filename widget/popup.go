@@ -86,16 +86,12 @@ func (p *PopUp) ShowAtRelativePosition(rel fyne.Position, to fyne.CanvasObject) 
 
 // Tapped is called when the user taps the popUp background - if not modal then dismiss this widget
 func (p *PopUp) Tapped(_ *fyne.PointEvent) {
-	if !p.modal {
-		p.Hide()
-	}
+	p.Hide()
 }
 
 // TappedSecondary is called when the user right/alt taps the background - if not modal then dismiss this widget
 func (p *PopUp) TappedSecondary(_ *fyne.PointEvent) {
-	if !p.modal {
-		p.Hide()
-	}
+	p.Hide()
 }
 
 // MinSize returns the size that this widget should not shrink below
