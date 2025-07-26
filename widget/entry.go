@@ -567,6 +567,11 @@ func (e *Entry) GetCursorOffset() (int, int) {
 	return pos, pos
 }
 
+func (e *Entry) SetCursorOffset(pos int) {
+	e.CursorRow, e.CursorColumn = e.rowColFromTextPos(pos)
+	e.Refresh()
+}
+
 // Append appends the text to the end of the entry.
 //
 // Since: 2.4
@@ -663,6 +668,14 @@ func (e *Entry) TappedSecondary(pe *fyne.PointEvent) {
 //
 // Implements: mobile.Touchable
 func (e *Entry) TouchDown(ev *mobile.TouchEvent) {
+}
+
+// TouchUp is called when this entry gets a touch up event on mobile device.
+//
+// Since: 2.1
+//
+// Implements: mobile.Touchable
+func (e *Entry) TouchUp(ev *mobile.TouchEvent) {
 	now := time.Now().UnixMilli()
 	if !e.Disabled() {
 		e.requestFocus()
@@ -673,14 +686,6 @@ func (e *Entry) TouchDown(ev *mobile.TouchEvent) {
 	}
 
 	e.updateMousePointer(ev.Position, false)
-}
-
-// TouchUp is called when this entry gets a touch up event on mobile device.
-//
-// Since: 2.1
-//
-// Implements: mobile.Touchable
-func (e *Entry) TouchUp(*mobile.TouchEvent) {
 }
 
 // TouchCancel is called when this entry gets a touch cancel event on mobile device (app was removed from focus).
