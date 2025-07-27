@@ -282,13 +282,34 @@ func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject) {
 }
 
 // Focused returns the current focused object.
+
+// Focused returns the current focused object.
 func (c *Canvas) Focused() fyne.Focusable {
 	mgr := c.focusManager()
 	if mgr == nil {
 		return nil
 	}
 
-	return mgr.Focused()
+	focused := mgr.Focused()
+	if focused != nil {
+		return focused
+	}
+
+	if c.contentFocusMgr != nil {
+		focused = c.contentFocusMgr.Focused()
+		if focused != nil {
+			return focused
+		}
+	}
+
+	if c.menuFocusMgr != nil {
+		focused = c.menuFocusMgr.Focused()
+		if focused != nil {
+			return focused
+		}
+	}
+
+	return nil
 }
 
 // FocusGained signals to the manager that its content got focus.

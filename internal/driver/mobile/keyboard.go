@@ -25,7 +25,7 @@ func handleKeyboard(obj fyne.Focusable) {
 		if keyb, ok := obj.(mobile.Keyboardable); ok {
 			showVirtualKeyboard(keyb.Keyboard())
 		} else {
-			hideVirtualKeyboard()
+			showVirtualKeyboard(mobile.DefaultKeyboard)
 		}
 	} else {
 		hideVirtualKeyboard()
