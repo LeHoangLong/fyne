@@ -138,6 +138,15 @@ static CGFloat keyboardHeight;
 	self.glview.multipleTouchEnabled = true; // TODO expose setting to user.
 	self.glview.context = self.context;
 	self.glview.userInteractionEnabled = YES;
+
+
+    UIToolbar *toolbar = [[UIToolbar alloc] initWithFrame:CGRectMake(0, 0, [UIScreen mainScreen].bounds.size.width, 44)];
+    UIBarButtonItem *flexibleSpace = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
+    UIBarButtonItem *doneButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(doneButtonTapped)];
+
+    [toolbar setItems:@[flexibleSpace, doneButton]];
+    self.inputView.inputAccessoryView = toolbar;
+
 	//self.glview.enableSetNeedsDisplay = YES; // only invoked once
 
 	// Do not use the GLKViewController draw loop.
@@ -158,6 +167,10 @@ static CGFloat keyboardHeight;
     self.glview.enableSetNeedsDisplay = NO;
     CADisplayLink* displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(render:)];
     [displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+}
+
+- (void)doneButtonTapped {
+    keyboardTyped("\n");
 }
 
 - (void)viewWillTransitionToSize:(CGSize)ptSize withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
@@ -288,6 +301,17 @@ static void sendTouches(int change, NSSet* touches) {
     return YES;
 }
 
+- (BOOL)textFieldShouldBeginEditing:(UITextField *)textField
+{
+    UIToolbar* numberToolbar = [[UIToolbar alloc]initWithFrame:CGRectMake(0, 0, 320, 50)];
+    numberToolbar.barStyle = UIBarStyleBlackTranslucent;
+    numberToolbar.items = [NSArray arrayWithObjects:
+                            [[UIBarButtonItem alloc]initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil],
+                            [[UIBarButtonItem alloc]initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil],
+                            [[UIBarButtonItem alloc]initWithTitle:@"Done" style:UIBarButtonItemStyleDone target:self action:@selector(doneButton)],nil];
+    textField.inputAccessoryView = numberToolbar;
+}
+
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
     if ([self returnKeyType] != UIReturnKeyDone) {
         keyboardTyped("\n");
@@ -362,24 +386,27 @@ void showKeyboard(int keyboardType) {
     GoInputView *view = appDelegate.controller.inputView;
 
     dispatch_async(dispatch_get_main_queue(), ^{
+        NSLog(@"SIGGRAPH keyboardType %d", keyboardType);
+
+
         switch (keyboardType)
         {
             case DEFAULT_KEYBOARD_CODE:
                 [view setKeyboardType:UIKeyboardTypeDefault];
-                [view setReturnKeyType:UIReturnKeyDefault];
+                [view setReturnKeyType:UIReturnKeyContinue];
                 break;
             case SINGLELINE_KEYBOARD_CODE:
                 [view setKeyboardType:UIKeyboardTypeDefault];
-                [view setReturnKeyType:UIReturnKeyDone];
+                [view setReturnKeyType:UIReturnKeyContinue];
                 break;
             case NUMBER_KEYBOARD_CODE:
-                [view setKeyboardType:UIKeyboardTypeNumberPad];
-                [view setReturnKeyType:UIReturnKeyDone];
+                [view setKeyboardType:UIKeyboardTypeDecimalPad];
+                [view setReturnKeyType:UIReturnKeyContinue];
                 break;
             default:
                 NSLog(@"unknown keyboard type, use default");
                 [view setKeyboardType:UIKeyboardTypeDefault];
-                [view setReturnKeyType:UIReturnKeyDefault];
+                [view setReturnKeyType:UIReturnKeyContinue];
                 break;
         }
         // refresh settings if keyboard is already open
