@@ -3,6 +3,7 @@ package mobile
 import (
 	"log"
 	"math"
+	"reflect"
 	"runtime"
 	"strconv"
 	"sync/atomic"
@@ -29,7 +30,6 @@ import (
 	pgl "fyne.io/fyne/v2/internal/painter/gl"
 	"fyne.io/fyne/v2/internal/scale"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 )
 
 const (
@@ -553,6 +553,11 @@ func runeToPrintable(r rune) rune {
 
 func (d *driver) loopKeyboard() {
 	log.Println("SIGGRAPH loop")
+
+	type Entry interface {
+		SetTextWithHistoryAndCursor(text string, offset int)
+		GetCursorOffset() (int, int)
+	}
 	go func() {
 		if !app.UseExperimentalKeyboardV2() {
 			return
@@ -570,24 +575,34 @@ func (d *driver) loopKeyboard() {
 
 			focused := canvasInst.Focused()
 			if focused != nil {
-				entry, ok := focused.(*widget.Entry)
+
+				entryText, ok := getField(focused, "Text")
+				if !ok {
+					continue
+				}
+				entryTextStr, ok := entryText.(string)
+				if !ok {
+					continue
+				}
+
+				tempEntry, ok := focused.(Entry)
 				if !ok {
 					continue
 				}
 
 				if previousFocused != focused {
 					previousFocused = focused
-					app.SetCurrentKeyboardValue(entry.Text)
+					app.SetCurrentKeyboardValue(entryTextStr)
 					time.Sleep(50 * time.Millisecond)
 					continue
 				}
 
 				text := app.GetCurrentKeyboardValue()
 				offsetStart, offsetEnd := app.GetCurrentCursorOffset()
-				if entry.Text != text {
-					entry.SetTextWithHistoryAndCursor(text, offsetStart)
+				if entryText != text {
+					tempEntry.SetTextWithHistoryAndCursor(text, offsetStart)
 				} else {
-					currentEntryOffsetStart, currentEntryOffsetEnd := entry.GetCursorOffset()
+					currentEntryOffsetStart, currentEntryOffsetEnd := tempEntry.GetCursorOffset()
 					if currentEntryOffsetStart != offsetStart || currentEntryOffsetEnd != offsetEnd {
 						app.SetCurrentCursorOffset(currentEntryOffsetStart, currentEntryOffsetEnd)
 					}
@@ -595,6 +610,29 @@ func (d *driver) loopKeyboard() {
 			}
 		}
 	}()
+}
+
+func getField(obj interface{}, fieldName string) (interface{}, bool) {
+	// Get the value of the interface
+	v := reflect.ValueOf(obj)
+
+	// If it's a pointer, get the underlying value
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	// Check if it's a struct
+	if v.Kind() != reflect.Struct {
+		return nil, false
+	}
+
+	// Get the field by name
+	field := v.FieldByName(fieldName)
+	if !field.IsValid() {
+		return nil, false
+	}
+
+	return field.Interface(), true
 }
 
 func (d *driver) typeDownCanvas(canvas *canvas, r rune, code key.Code, mod key.Modifiers) {
