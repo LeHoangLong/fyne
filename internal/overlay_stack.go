@@ -10,11 +10,12 @@ import (
 
 // OverlayStack implements fyne.OverlayStack
 type OverlayStack struct {
-	OnChange      func()
-	Canvas        fyne.Canvas
-	focusManagers []*app.FocusManager
-	overlays      []fyne.CanvasObject
-	propertyLock  sync.RWMutex
+	OnChange                   func()
+	Canvas                     fyne.Canvas
+	focusManagers              []*app.FocusManager
+	overlays                   []fyne.CanvasObject
+	overlayFocusManagerMapping map[fyne.CanvasObject]*app.FocusManager
+	propertyLock               sync.RWMutex
 }
 
 var _ fyne.OverlayStack = (*OverlayStack)(nil)
@@ -43,7 +44,13 @@ func (s *OverlayStack) Add(overlay fyne.CanvasObject) {
 		overlay.Move(safePos)
 	}
 
-	s.focusManagers = append(s.focusManagers, app.NewFocusManager(overlay))
+	newFocusManager := app.NewFocusManager(overlay)
+	s.focusManagers = append(s.focusManagers, newFocusManager)
+
+	if s.overlayFocusManagerMapping == nil {
+		s.overlayFocusManagerMapping = map[fyne.CanvasObject]*app.FocusManager{}
+	}
+	s.overlayFocusManagerMapping[overlay] = newFocusManager
 }
 
 // List returns all overlays on the stack from bottom to top.
@@ -95,10 +102,22 @@ func (s *OverlayStack) Remove(overlay fyne.CanvasObject) {
 	// set removed elements in backing array to nil to release memory references
 	for i := overlayIdx; i < len(s.overlays); i++ {
 		s.overlays[i] = nil
-		s.focusManagers[i] = nil
 	}
 	s.overlays = s.overlays[:overlayIdx]
-	s.focusManagers = s.focusManagers[:overlayIdx]
+
+	if s.overlayFocusManagerMapping != nil {
+		// should always be the case
+		correspondingFocusManager := s.overlayFocusManagerMapping[overlay]
+		filteredMangers := []*app.FocusManager{}
+		for i := 0; i < len(s.focusManagers); i++ {
+			if s.focusManagers[i] != correspondingFocusManager && s.focusManagers[i] != nil {
+				filteredMangers = append(filteredMangers, s.focusManagers[i])
+			}
+		}
+
+		s.focusManagers = filteredMangers
+		delete(s.overlayFocusManagerMapping, overlay)
+	}
 }
 
 // Top returns the top-most overlay of the stack.
