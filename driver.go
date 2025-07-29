@@ -17,6 +17,8 @@ type Driver interface {
 
 	// CanvasForObject returns the canvas that is associated with a given [CanvasObject].
 	CanvasForObject(CanvasObject) Canvas
+	CanvasForWidget(Widget) Canvas
+
 	// AbsolutePositionForObject returns the position of a given [CanvasObject] relative to the top/left of a canvas.
 	AbsolutePositionForObject(CanvasObject) Position
 
