@@ -53,6 +53,10 @@ func (d *dialog) Hide() {
 	d.hideWithResponse(false)
 }
 
+func (d *dialog) SetDismissible(dimissible bool) {
+	d.win.Undismissible = !dimissible
+}
+
 // MinSize returns the size that this dialog should not shrink below
 //
 // Since: 2.1

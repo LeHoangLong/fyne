@@ -20,6 +20,8 @@ type PopUp struct {
 	innerSize    fyne.Size
 	modal        bool
 	overlayShown bool
+
+	Undismissible bool
 }
 
 // Hide this widget, if it was previously visible
@@ -86,12 +88,16 @@ func (p *PopUp) ShowAtRelativePosition(rel fyne.Position, to fyne.CanvasObject) 
 
 // Tapped is called when the user taps the popUp background - if not modal then dismiss this widget
 func (p *PopUp) Tapped(_ *fyne.PointEvent) {
-	p.Hide()
+	if !p.Undismissible {
+		p.Hide()
+	}
 }
 
 // TappedSecondary is called when the user right/alt taps the background - if not modal then dismiss this widget
 func (p *PopUp) TappedSecondary(_ *fyne.PointEvent) {
-	p.Hide()
+	if !p.Undismissible {
+		p.Hide()
+	}
 }
 
 // MinSize returns the size that this widget should not shrink below
