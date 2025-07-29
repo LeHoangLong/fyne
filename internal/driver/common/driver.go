@@ -9,3 +9,7 @@ import (
 func CanvasForObject(obj fyne.CanvasObject) fyne.Canvas {
 	return cache.GetCanvasForObject(obj)
 }
+
+func CanvasForWidget(widget fyne.Widget) fyne.Canvas {
+	return cache.GetCanvasForWidget(widget)
+}

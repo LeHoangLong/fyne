@@ -21,6 +21,46 @@ func GetCanvasForObject(obj fyne.CanvasObject) fyne.Canvas {
 	return cinfo.canvas
 }
 
+type hasSupper interface {
+	super() fyne.Widget
+}
+
+func GetCanvasForWidget(wid fyne.Widget) fyne.Canvas {
+	if wid == nil {
+		return nil
+	}
+
+	if wd, ok := wid.(hasSupper); ok {
+		if wd.super() != nil {
+			wid = wd.super()
+		}
+	}
+
+	renderersLock.RLock()
+	rinfo, ok := renderers[wid]
+	renderersLock.RUnlock()
+
+	if rinfo == nil || !ok {
+		return nil
+	}
+
+	canvasesLock.RLock()
+	defer canvasesLock.RUnlock()
+	objects := rinfo.renderer.Objects()
+	for i := range objects {
+		cinfo, ok := canvases[objects[i]]
+		if cinfo == nil || !ok {
+			continue
+		}
+
+		cinfo.setAlive()
+		rinfo.setAlive()
+		return cinfo.canvas
+	}
+
+	return nil
+}
+
 // SetCanvasForObject sets the canvas for the specified object.
 // The passed function will be called if the item was not previously attached to this canvas
 func SetCanvasForObject(obj fyne.CanvasObject, c fyne.Canvas, setup func()) {

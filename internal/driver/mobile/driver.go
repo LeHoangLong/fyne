@@ -120,6 +120,10 @@ func (d *driver) CanvasForObject(obj fyne.CanvasObject) fyne.Canvas {
 	return d.currentWindow().Canvas()
 }
 
+func (d *driver) CanvasForWidget(obj fyne.Widget) fyne.Canvas {
+	return common.CanvasForWidget(obj)
+}
+
 func (d *driver) AbsolutePositionForObject(co fyne.CanvasObject) fyne.Position {
 	c := d.CanvasForObject(co)
 	if c == nil {

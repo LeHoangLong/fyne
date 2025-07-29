@@ -76,6 +76,10 @@ func (d *gLDriver) CanvasForObject(obj fyne.CanvasObject) fyne.Canvas {
 	return common.CanvasForObject(obj)
 }
 
+func (d *gLDriver) CanvasForWidget(obj fyne.Widget) fyne.Canvas {
+	return common.CanvasForWidget(obj)
+}
+
 func (d *gLDriver) AbsolutePositionForObject(co fyne.CanvasObject) fyne.Position {
 	c := d.CanvasForObject(co)
 	if c == nil {

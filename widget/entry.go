@@ -1626,6 +1626,8 @@ func (e *Entry) typedKeyReturn(provider *RichText, multiLine bool) {
 	text := e.Text
 	e.propertyLock.RUnlock()
 
+	canvas := fyne.CurrentApp().Driver().CanvasForWidget(e.super())
+
 	if !multiLine {
 		// Single line doesn't support newline.
 		// Call submitted callback, if any.
@@ -1633,20 +1635,24 @@ func (e *Entry) typedKeyReturn(provider *RichText, multiLine bool) {
 			onSubmitted(text)
 		}
 
-		if e.FocusNextOnFinish {
-			fyne.CurrentApp().Driver().CanvasForObject(e).FocusNext()
-		} else {
-			fyne.CurrentApp().Driver().CanvasForObject(e).Unfocus()
+		if canvas != nil {
+			if e.FocusNextOnFinish {
+				canvas.FocusNext()
+			} else {
+				canvas.Unfocus()
+			}
 		}
 		return
 	} else if selectDown && onSubmitted != nil {
 		// Multiline supports newline, unless shift is held and OnSubmitted is set.
 		onSubmitted(text)
 
-		if e.FocusNextOnFinish {
-			fyne.CurrentApp().Driver().CanvasForObject(e).FocusNext()
-		} else {
-			fyne.CurrentApp().Driver().CanvasForObject(e).Unfocus()
+		if canvas != nil {
+			if e.FocusNextOnFinish {
+				canvas.FocusNext()
+			} else {
+				canvas.Unfocus()
+			}
 		}
 		return
 	}

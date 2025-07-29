@@ -74,6 +74,13 @@ func (d *driver) CanvasForObject(fyne.CanvasObject) fyne.Canvas {
 	return d.windows[len(d.windows)-1].Canvas()
 }
 
+func (d *driver) CanvasForWidget(fyne.Widget) fyne.Canvas {
+	d.windowsMutex.RLock()
+	defer d.windowsMutex.RUnlock()
+	// cheating: probably the last created window is meant
+	return d.windows[len(d.windows)-1].Canvas()
+}
+
 func (d *driver) CreateWindow(title string) fyne.Window {
 	c := NewCanvas().(*canvas)
 	if d.painter != nil {
