@@ -36,7 +36,7 @@ var _ mobile.Keyboardable = (*Entry)(nil)
 var _ mobile.Touchable = (*Entry)(nil)
 var _ fyne.Tabbable = (*Entry)(nil)
 
-var DefaultEntryFocusNextOnFinish = false
+var EntryDefaultBehaviorAfterFinish = BehaviorAfterFinishDoNothing
 
 // Entry widget allows simple text to be input when focused.
 type Entry struct {
@@ -109,12 +109,20 @@ type Entry struct {
 	// used for deciding whether the next MouseDown/TouchDown is a triple-tap or not
 	doubleTappedAtUnixMillis int64
 
-	FocusNextOnFinish bool
+	BehaviorAfterFinish BehaviorAfterFinish
 }
+
+type BehaviorAfterFinish int
+
+const (
+	BehaviorAfterFinishDoNothing BehaviorAfterFinish = iota
+	BehaviorAfterFinishFocusNext
+	BehaviorAfterFinishUnfocus
+)
 
 // NewEntry creates a new single line entry widget.
 func NewEntry() *Entry {
-	e := &Entry{Wrapping: fyne.TextWrap(fyne.TextTruncateClip), FocusNextOnFinish: DefaultEntryFocusNextOnFinish}
+	e := &Entry{Wrapping: fyne.TextWrap(fyne.TextTruncateClip), BehaviorAfterFinish: EntryDefaultBehaviorAfterFinish}
 	e.ExtendBaseWidget(e)
 	return e
 }
@@ -1636,9 +1644,10 @@ func (e *Entry) typedKeyReturn(provider *RichText, multiLine bool) {
 		}
 
 		if canvas != nil {
-			if e.FocusNextOnFinish {
+			switch e.BehaviorAfterFinish {
+			case BehaviorAfterFinishFocusNext:
 				canvas.FocusNext()
-			} else {
+			case BehaviorAfterFinishUnfocus:
 				canvas.Unfocus()
 			}
 		}
@@ -1648,9 +1657,10 @@ func (e *Entry) typedKeyReturn(provider *RichText, multiLine bool) {
 		onSubmitted(text)
 
 		if canvas != nil {
-			if e.FocusNextOnFinish {
+			switch e.BehaviorAfterFinish {
+			case BehaviorAfterFinishFocusNext:
 				canvas.FocusNext()
-			} else {
+			case BehaviorAfterFinishUnfocus:
 				canvas.Unfocus()
 			}
 		}

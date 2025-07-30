@@ -160,10 +160,10 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 	if focusMgr != nil && focusMgr.Focus(obj) { // fast path – probably >99.9% of all cases
 		if c.OnFocus != nil {
 			c.OnFocus(obj)
+		}
 
-			if co, ok := obj.(fyne.CanvasObject); ok {
-				c.ScrollToFocused(co)
-			}
+		if co, ok := obj.(fyne.CanvasObject); ok {
+			c.ScrollToFocused(co)
 		}
 		return
 	}
@@ -201,7 +201,12 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 
 func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject) {
 	var horizontalScrollAncestor, verticalScrollAncestor *widget.Scroll
-	areaPos, areaSize := fyne.CurrentApp().Driver().CanvasForObject(obj).InteractiveArea()
+	canvas := fyne.CurrentApp().Driver().CanvasForObject(obj)
+	if canvas == nil {
+		return
+	}
+
+	areaPos, areaSize := canvas.InteractiveArea()
 
 	c.WalkTrees(
 		func(rcn *RenderCacheNode, p fyne.Position) {},
@@ -236,9 +241,9 @@ func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject) {
 
 					if horizontalScrollAncestor != nil {
 						objPos := driver.AbsolutePositionForObject(thisNodeObj, c.ObjectTrees())
-						middle := areaSize.Width/2 + areaPos.X
+						middle := areaSize.Width/4 + areaPos.X
 
-						targetX = verticalScrollAncestor.Offset.X + (objPos.X - middle)
+						targetX = horizontalScrollAncestor.Offset.X + (objPos.X - middle)
 					}
 
 					currentX := float32(0)
@@ -264,7 +269,7 @@ func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject) {
 						anim := fyne.NewAnimation(100*time.Millisecond, func(f float32) {
 							if horizontalScrollAncestor != nil {
 								horizontalScrollAncestor.Offset.X = currentX + totalDiffX*f
-								verticalScrollAncestor.Base.Refresh()
+								horizontalScrollAncestor.Base.Refresh()
 							}
 
 							if verticalScrollAncestor != nil {
