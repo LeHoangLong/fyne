@@ -2,6 +2,7 @@ package common
 
 import (
 	"image/color"
+	"math"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -163,7 +164,7 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 		}
 
 		if co, ok := obj.(fyne.CanvasObject); ok {
-			c.ScrollToFocused(co)
+			c.ScrollToFocused(co, nil)
 		}
 		return
 	}
@@ -188,7 +189,7 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 				c.overlays.SetFocusManagers(focusMgrs)
 
 				if co, ok := obj.(fyne.CanvasObject); ok {
-					c.ScrollToFocused(co)
+					c.ScrollToFocused(co, nil)
 				}
 
 				return
@@ -199,7 +200,7 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 	fyne.LogError("Failed to focus object which is not part of the canvas’ content, menu or overlays.", nil)
 }
 
-func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject) {
+func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject, Options *fyne.ScrollToFocusedOptions) {
 	var horizontalScrollAncestor, verticalScrollAncestor *widget.Scroll
 	canvas := fyne.CurrentApp().Driver().CanvasForObject(obj)
 	if canvas == nil {
@@ -255,12 +256,6 @@ func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject) {
 						currentY = verticalScrollAncestor.Offset.Y
 					}
 
-					if targetX < 0 {
-						targetX = 0
-					}
-					if targetY < 0 {
-						targetY = 0
-					}
 					totalDiffX := targetX - currentX
 					totalDiffY := targetY - currentY
 
@@ -275,6 +270,12 @@ func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject) {
 							if verticalScrollAncestor != nil {
 								verticalScrollAncestor.Offset.Y = currentY + totalDiffY*f
 								verticalScrollAncestor.Base.Refresh()
+							}
+
+							if Options != nil && Options.OnComplete != nil {
+								if math.Abs(float64(f-1)) < 0.01 {
+									Options.OnComplete()
+								}
 							}
 						})
 						anim.Curve = fyne.AnimationLinear

@@ -132,8 +132,7 @@ func (d *driver) AbsolutePositionForObject(co fyne.CanvasObject) fyne.Position {
 
 	mc := c.(*canvas)
 	pos := intdriver.AbsolutePositionForObject(co, mc.ObjectTrees())
-	inset, _ := c.InteractiveArea()
-	return pos.Subtract(inset)
+	return pos
 }
 
 func (d *driver) GoBack() {
@@ -216,7 +215,7 @@ func (d *driver) Run() {
 						focused := current.canvas.Focused()
 						if focused != nil {
 							if co, ok := focused.(fyne.CanvasObject); ok {
-								current.canvas.ScrollToFocused(co)
+								current.canvas.ScrollToFocused(co, nil)
 							}
 						}
 					}
@@ -568,6 +567,7 @@ func (d *driver) loopKeyboard() {
 		}
 		var canvasInst *canvas
 		var previousFocused fyne.Focusable
+		var previousKeyboardValue string
 		for {
 			time.Sleep(20 * time.Millisecond)
 			if canvasInst == nil {
@@ -601,16 +601,24 @@ func (d *driver) loopKeyboard() {
 					continue
 				}
 
-				text := app.GetCurrentKeyboardValue()
-				offsetStart, offsetEnd := app.GetCurrentCursorOffset()
-				if entryText != text {
-					tempEntry.SetTextWithHistoryAndCursor(text, offsetStart)
-				} else {
-					currentEntryOffsetStart, currentEntryOffsetEnd := tempEntry.GetCursorOffset()
-					if currentEntryOffsetStart != offsetStart || currentEntryOffsetEnd != offsetEnd {
-						app.SetCurrentCursorOffset(currentEntryOffsetStart, currentEntryOffsetEnd)
+				func() {
+
+					text := app.GetCurrentKeyboardValue()
+					defer func() { previousKeyboardValue = text }()
+					offsetStart, offsetEnd := app.GetCurrentCursorOffset()
+					if entryTextStr != text {
+						if previousKeyboardValue == text {
+							app.SetCurrentKeyboardValue(entryTextStr)
+						} else {
+							tempEntry.SetTextWithHistoryAndCursor(text, offsetStart)
+						}
+					} else {
+						currentEntryOffsetStart, currentEntryOffsetEnd := tempEntry.GetCursorOffset()
+						if currentEntryOffsetStart != offsetStart || currentEntryOffsetEnd != offsetEnd {
+							app.SetCurrentCursorOffset(currentEntryOffsetStart, currentEntryOffsetEnd)
+						}
 					}
-				}
+				}()
 			}
 		}
 	}()

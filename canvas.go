@@ -28,6 +28,8 @@ type Canvas interface {
 	Unfocus()
 	Focused() Focusable
 
+	ScrollToFocused(obj CanvasObject, Options *ScrollToFocusedOptions)
+
 	// Size returns the current size of this canvas
 	Size() Size
 	// Scale returns the current scale (multiplication factor) this canvas uses to render
@@ -55,4 +57,8 @@ type Canvas interface {
 	//
 	// Since: 1.4
 	InteractiveArea() (Position, Size)
+}
+
+type ScrollToFocusedOptions struct {
+	OnComplete func()
 }
