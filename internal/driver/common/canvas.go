@@ -164,7 +164,11 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 		}
 
 		if co, ok := obj.(fyne.CanvasObject); ok {
-			c.ScrollToFocused(co, nil)
+			c.ScrollToFocused(co, &fyne.ScrollToFocusedOptions{
+				OnComplete: func() {
+					focusMgr.Focus(obj)
+				},
+			})
 		}
 		return
 	}
@@ -189,7 +193,11 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 				c.overlays.SetFocusManagers(focusMgrs)
 
 				if co, ok := obj.(fyne.CanvasObject); ok {
-					c.ScrollToFocused(co, nil)
+					c.ScrollToFocused(co, &fyne.ScrollToFocusedOptions{
+						OnComplete: func() {
+							focusMgr.Focus(obj)
+						},
+					})
 				}
 
 				return
@@ -260,7 +268,6 @@ func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject, Options *fyne.ScrollToFo
 					totalDiffY := targetY - currentY
 
 					if horizontalScrollAncestor != nil || verticalScrollAncestor != nil {
-
 						anim := fyne.NewAnimation(100*time.Millisecond, func(f float32) {
 							if horizontalScrollAncestor != nil {
 								horizontalScrollAncestor.Offset.X = currentX + totalDiffX*f
@@ -272,8 +279,8 @@ func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject, Options *fyne.ScrollToFo
 								verticalScrollAncestor.Base.Refresh()
 							}
 
-							if Options != nil && Options.OnComplete != nil {
-								if math.Abs(float64(f-1)) < 0.01 {
+							if math.Abs(float64(f-1)) < 0.01 {
+								if Options != nil && Options.OnComplete != nil {
 									Options.OnComplete()
 								}
 							}
