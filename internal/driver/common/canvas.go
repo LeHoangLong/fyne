@@ -210,8 +210,16 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 
 func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject, Options *fyne.ScrollToFocusedOptions) {
 	var horizontalScrollAncestor, verticalScrollAncestor *widget.Scroll
-	canvas := fyne.CurrentApp().Driver().CanvasForObject(obj)
+	driverInst := fyne.CurrentApp().Driver()
+	canvas := driverInst.CanvasForObject(obj)
 	if canvas == nil {
+		return
+	}
+
+	if driverInst.Device().HasKeyboard() {
+		if Options != nil && Options.OnComplete != nil {
+			Options.OnComplete()
+		}
 		return
 	}
 
@@ -698,7 +706,6 @@ func (o *overlayStack) add(overlay fyne.CanvasObject) {
 func (o *overlayStack) remove(overlay fyne.CanvasObject) {
 	o.OverlayStack.Remove(overlay)
 	overlayCount := len(o.List())
-	o.renderCaches[overlayCount] = nil // release memory reference to removed element
 	o.renderCaches = o.renderCaches[:overlayCount]
 }
 
