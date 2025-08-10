@@ -3,6 +3,7 @@ package widget
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/driver/mobile"
 	"fyne.io/fyne/v2/internal/widget"
 	"fyne.io/fyne/v2/theme"
 )
@@ -22,6 +23,7 @@ type PopUp struct {
 	overlayShown bool
 
 	Undismissible bool
+	OnDismissed   func()
 }
 
 // Hide this widget, if it was previously visible
@@ -101,6 +103,14 @@ func (p *PopUp) Tapped(ev *fyne.PointEvent) {
 	}
 
 	p.Hide()
+	if p.OnDismissed != nil {
+		p.OnDismissed()
+	}
+}
+
+// TappedSecondary is called when the user right/alt taps the background - if not modal then dismiss this widget
+func (p *PopUp) TouchUp(ev *mobile.TouchEvent) {
+	p.Tapped(&ev.PointEvent)
 }
 
 // TappedSecondary is called when the user right/alt taps the background - if not modal then dismiss this widget
