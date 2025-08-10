@@ -407,7 +407,8 @@ type Scroll struct {
 	// You should not update the Scroll.Offset from this method.
 	//
 	// Since: 2.0
-	OnScrolled func(fyne.Position) `json:"-"`
+	OnScrolled    func(fyne.Position) `json:"-"`
+	DisableScroll bool
 }
 
 // CreateRenderer is a private method to Fyne which links this widget to its renderer
@@ -505,6 +506,8 @@ func (s *Scroll) Scrolled(ev *fyne.ScrollEvent) {
 
 func (s *Scroll) Scrollable(direction ScrollDirection) bool {
 	size := s.Size()
+	_, areaSize := fyne.CurrentApp().Driver().CanvasForObject(s.Content).InteractiveArea()
+	size = size.Min(areaSize)
 	contentSize := s.Content.Size()
 	if direction == ScrollHorizontalOnly {
 		if contentSize.Width <= size.Width {
@@ -538,19 +541,16 @@ func (s *Scroll) scrollBy(dx, dy float32) {
 }
 
 func (s *Scroll) updateOffset(deltaX, deltaY float32) bool {
-	size := s.Size()
-	contentSize := s.Content.Size()
-	if contentSize.Width <= size.Width && contentSize.Height <= size.Height {
-		if s.Offset.X != 0 || s.Offset.Y != 0 {
-			s.Offset.X = 0
-			s.Offset.Y = 0
-			return true
-		}
-		return false
+	if s.DisableScroll {
+		return true
 	}
+	size := s.Size()
+	min := s.Content.MinSize()
+	_, areaSize := fyne.CurrentApp().Driver().CanvasForObject(s.Content).InteractiveArea()
+	size = areaSize.Min(size)
+
 	oldX := s.Offset.X
 	oldY := s.Offset.Y
-	min := s.Content.MinSize()
 	s.Offset.X = computeOffset(s.Offset.X, -deltaX, size.Width, min.Width)
 	s.Offset.Y = computeOffset(s.Offset.Y, -deltaY, size.Height, min.Height)
 	if f := s.OnScrolled; f != nil && (s.Offset.X != oldX || s.Offset.Y != oldY) {

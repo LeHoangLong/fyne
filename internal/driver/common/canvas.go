@@ -2,6 +2,7 @@ package common
 
 import (
 	"image/color"
+	"log"
 	"math"
 	"reflect"
 	"sync"
@@ -55,6 +56,10 @@ type Canvas struct {
 	dirty        atomic.Bool
 
 	mWindowHeadTree, contentTree, menuTree *renderCacheTree
+
+	anim *fyne.Animation
+
+	ScrollToFocusedImpl func(obj fyne.CanvasObject, Options *fyne.ScrollToFocusedOptions)
 }
 
 // AddShortcut adds a shortcut to the canvas.
@@ -156,7 +161,6 @@ func (c *Canvas) EnsureMinSize() bool {
 
 // Focus makes the provided item focused.
 func (c *Canvas) Focus(obj fyne.Focusable) {
-
 	focusMgr := c.focusManager()
 	if focusMgr != nil && focusMgr.Focus(obj) { // fast path – probably >99.9% of all cases
 		if c.OnFocus != nil {
@@ -209,6 +213,10 @@ func (c *Canvas) Focus(obj fyne.Focusable) {
 }
 
 func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject, Options *fyne.ScrollToFocusedOptions) {
+	c.ReallyScrollToFocused(obj, Options)
+}
+
+func (c *Canvas) ReallyScrollToFocused(obj fyne.CanvasObject, Options *fyne.ScrollToFocusedOptions) {
 	var horizontalScrollAncestor, verticalScrollAncestor *widget.Scroll
 	driverInst := fyne.CurrentApp().Driver()
 	canvas := driverInst.CanvasForObject(obj)
@@ -216,14 +224,30 @@ func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject, Options *fyne.ScrollToFo
 		return
 	}
 
-	if driverInst.Device().HasKeyboard() {
+	outside := false
+	areaPos, areaSize := canvas.InteractiveArea()
+	focusedPos := driverInst.AbsolutePositionForObject(obj)
+	left := focusedPos.X
+	top := focusedPos.Y
+	right := focusedPos.X + obj.MinSize().Width
+	bottom := focusedPos.Y + obj.MinSize().Height
+
+	if right > areaPos.X+areaSize.Width {
+		outside = true
+	} else if left < areaPos.X {
+		outside = true
+	} else if bottom > areaPos.Y+areaSize.Height {
+		outside = true
+	} else if top < areaPos.Y {
+		outside = true
+	}
+
+	if !outside {
 		if Options != nil && Options.OnComplete != nil {
 			Options.OnComplete()
 		}
 		return
 	}
-
-	areaPos, areaSize := canvas.InteractiveArea()
 
 	c.WalkTrees(
 		func(rcn *RenderCacheNode, p fyne.Position) {},
@@ -253,7 +277,7 @@ func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject, Options *fyne.ScrollToFo
 						middle := areaSize.Height/2 + areaPos.Y
 
 						targetY = verticalScrollAncestor.Offset.Y + (objPos.Y - middle)
-
+						log.Printf("SIGGRAPH a.scroll.Offset.Y 6 %p %f %f %f %f %f\n", verticalScrollAncestor, areaSize.Height, verticalScrollAncestor.Offset.Y, targetY, objPos.Y, middle)
 					}
 
 					if horizontalScrollAncestor != nil {
@@ -276,7 +300,14 @@ func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject, Options *fyne.ScrollToFo
 					totalDiffY := targetY - currentY
 
 					if horizontalScrollAncestor != nil || verticalScrollAncestor != nil {
-						anim := fyne.NewAnimation(100*time.Millisecond, func(f float32) {
+						if verticalScrollAncestor != nil {
+							verticalScrollAncestor.DisableScroll = true
+						}
+
+						if c.anim != nil {
+							c.anim.Stop()
+						}
+						c.anim = fyne.NewAnimation(500*time.Millisecond, func(f float32) {
 							if horizontalScrollAncestor != nil {
 								horizontalScrollAncestor.Offset.X = currentX + totalDiffX*f
 								horizontalScrollAncestor.Base.Refresh()
@@ -284,17 +315,19 @@ func (c *Canvas) ScrollToFocused(obj fyne.CanvasObject, Options *fyne.ScrollToFo
 
 							if verticalScrollAncestor != nil {
 								verticalScrollAncestor.Offset.Y = currentY + totalDiffY*f
+
 								verticalScrollAncestor.Base.Refresh()
 							}
 
 							if math.Abs(float64(f-1)) < 0.01 {
+								verticalScrollAncestor.DisableScroll = false
 								if Options != nil && Options.OnComplete != nil {
 									Options.OnComplete()
 								}
 							}
 						})
-						anim.Curve = fyne.AnimationLinear
-						anim.Start()
+						c.anim.Curve = fyne.AnimationLinear
+						c.anim.Start()
 					}
 				}
 			}
