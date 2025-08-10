@@ -546,8 +546,11 @@ func (s *Scroll) updateOffset(deltaX, deltaY float32) bool {
 	}
 	size := s.Size()
 	min := s.Content.MinSize()
-	_, areaSize := fyne.CurrentApp().Driver().CanvasForObject(s.Content).InteractiveArea()
-	size = areaSize.Min(size)
+	canvas := fyne.CurrentApp().Driver().CanvasForObject(s.Content)
+	if canvas != nil {
+		_, areaSize := canvas.InteractiveArea()
+		size = areaSize.Min(size)
+	}
 
 	oldX := s.Offset.X
 	oldY := s.Offset.Y
