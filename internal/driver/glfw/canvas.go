@@ -66,7 +66,12 @@ func (c *glCanvas) DismissMenu() bool {
 }
 
 func (c *glCanvas) InteractiveArea() (fyne.Position, fyne.Size) {
-	return fyne.Position{}, c.Size()
+	padding := theme.Padding()
+	size := c.Size()
+	if c.padded {
+		size = size.SubtractWidthHeight(padding+padding, padding+padding)
+	}
+	return fyne.Position{}, size
 }
 
 func (c *glCanvas) MinSize() fyne.Size {

@@ -229,8 +229,9 @@ func (c *Canvas) ReallyScrollToFocused(obj fyne.CanvasObject, Options *fyne.Scro
 	focusedPos := driverInst.AbsolutePositionForObject(obj)
 	left := focusedPos.X
 	top := focusedPos.Y
-	right := focusedPos.X + obj.MinSize().Width
-	bottom := focusedPos.Y + obj.MinSize().Height
+	objSize := obj.Size().Max(obj.MinSize())
+	right := focusedPos.X + objSize.Width
+	bottom := focusedPos.Y + objSize.Height
 
 	if right > areaPos.X+areaSize.Width {
 		outside = true
@@ -405,7 +406,11 @@ func (c *Canvas) FocusPrevious() {
 	if mgr == nil {
 		return
 	}
-	mgr.FocusPrevious()
+
+	previous := mgr.PreviousInChain(mgr.Focused())
+	if previous != nil {
+		c.Focus(previous)
+	}
 }
 
 // FreeDirtyTextures frees dirty textures and returns the number of freed textures.

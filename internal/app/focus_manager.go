@@ -101,6 +101,13 @@ func (f *FocusManager) FocusPrevious() {
 	f.focus(f.previousInChain(f.focused))
 }
 
+func (f *FocusManager) PreviousInChain(current fyne.Focusable) fyne.Focusable {
+	f.RLock()
+	defer f.RUnlock()
+	return f.previousInChain(current)
+
+}
+
 func (f *FocusManager) focus(obj fyne.Focusable) {
 	if f.focused == obj {
 		return
