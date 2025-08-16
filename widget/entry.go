@@ -1643,7 +1643,8 @@ func (e *Entry) typedKeyReturn(provider *RichText, multiLine bool) {
 			onSubmitted(text)
 		}
 
-		if canvas != nil && canvas.Focused() == e {
+		super, ok := e.super().(fyne.Focusable)
+		if canvas != nil && ok && canvas.Focused() == super {
 			switch e.BehaviorAfterFinish {
 			case BehaviorAfterFinishFocusNext:
 				canvas.FocusNext()
@@ -1656,7 +1657,8 @@ func (e *Entry) typedKeyReturn(provider *RichText, multiLine bool) {
 		// Multiline supports newline, unless shift is held and OnSubmitted is set.
 		onSubmitted(text)
 
-		if canvas != nil && canvas.Focused() == e {
+		super, ok := e.super().(fyne.Focusable)
+		if canvas != nil && ok && canvas.Focused() == super {
 			switch e.BehaviorAfterFinish {
 			case BehaviorAfterFinishFocusNext:
 				canvas.FocusNext()
