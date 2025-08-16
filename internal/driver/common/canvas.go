@@ -591,14 +591,12 @@ func (c *Canvas) Unfocus() {
 		focusManagers[i].Focus(nil)
 	}
 
-	c.Lock()
 	if c.contentFocusMgr != nil {
 		c.contentFocusMgr.Focus(nil)
 	}
 	if c.menuFocusMgr != nil {
 		c.menuFocusMgr.Focus(nil)
 	}
-	c.Unlock()
 	if c.OnUnfocus != nil {
 		c.OnUnfocus()
 	}
