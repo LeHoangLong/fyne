@@ -586,11 +586,20 @@ func (c *Canvas) TypedShortcut(shortcut fyne.Shortcut) {
 
 // Unfocus unfocuses all the objects in the canvas.
 func (c *Canvas) Unfocus() {
-	mgr := c.focusManager()
-	if mgr == nil {
-		return
+	focusManagers := c.overlays.ListFocusManagers()
+	for i := range focusManagers {
+		focusManagers[i].Focus(nil)
 	}
-	if mgr.Focus(nil) && c.OnUnfocus != nil {
+
+	c.Lock()
+	if c.contentFocusMgr != nil {
+		c.contentFocusMgr.Focus(nil)
+	}
+	if c.menuFocusMgr != nil {
+		c.menuFocusMgr.Focus(nil)
+	}
+	c.Unlock()
+	if c.OnUnfocus != nil {
 		c.OnUnfocus()
 	}
 }
