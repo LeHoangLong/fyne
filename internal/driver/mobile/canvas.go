@@ -222,21 +222,13 @@ func (c *canvas) sizeContent(size fyne.Size) {
 		}
 	}
 
-	newPos := areaPos
 	if c.padded {
-		newPos = newPos.Add(fyne.NewPos(theme.Padding(), theme.Padding()))
-		size = size.SubtractWidthHeight(theme.Padding()*2, theme.Padding()*2)
+		c.content.Resize(areaSize.Subtract(fyne.NewSize(theme.Padding()*2, theme.Padding()*2)))
+		c.content.Move(areaPos.Add(fyne.NewPos(theme.Padding(), theme.Padding())))
+	} else {
+		c.content.Resize(areaSize)
+		c.content.Move(areaPos)
 	}
-
-	size = size.Subtract(areaPos)
-
-	lastTapPosition := c.lastTapDownPos[c.lastTapId]
-	if lastTapPosition.Y > areaPos.Y+areaSize.Height {
-		heightDiff := size.Height - areaSize.Height - theme.Padding()
-		newPos = newPos.SubtractXY(0, heightDiff).Add(areaPos)
-	}
-	c.content.Resize(size)
-	c.content.Move(newPos)
 }
 
 func (c *canvas) tapDown(pos fyne.Position, tapID int) {
