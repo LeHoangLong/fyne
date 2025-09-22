@@ -17,12 +17,16 @@ import (
 const fileSchemePrefix string = "file://"
 
 // declare conformance with repository types
-var _ repository.Repository = (*FileRepository)(nil)
-var _ repository.WritableRepository = (*FileRepository)(nil)
-var _ repository.HierarchicalRepository = (*FileRepository)(nil)
-var _ repository.ListableRepository = (*FileRepository)(nil)
-var _ repository.MovableRepository = (*FileRepository)(nil)
-var _ repository.CopyableRepository = (*FileRepository)(nil)
+var (
+	_ repository.Repository             = (*FileRepository)(nil)
+	_ repository.WritableRepository     = (*FileRepository)(nil)
+	_ repository.DeleteAllRepository    = (*FileRepository)(nil)
+	_ repository.AppendableRepository   = (*FileRepository)(nil)
+	_ repository.HierarchicalRepository = (*FileRepository)(nil)
+	_ repository.ListableRepository     = (*FileRepository)(nil)
+	_ repository.MovableRepository      = (*FileRepository)(nil)
+	_ repository.CopyableRepository     = (*FileRepository)(nil)
+)
 
 var _ fyne.URIReadCloser = (*file)(nil)
 var _ fyne.URIWriteCloser = (*file)(nil)
@@ -157,6 +161,13 @@ func (r *FileRepository) CanWrite(u fyne.URI) (bool, error) {
 // Since: 2.0
 func (r *FileRepository) Delete(u fyne.URI) error {
 	return os.Remove(u.Path())
+}
+
+// DeleteAll implements repository.DeleteAllRepository.DeleteAll
+//
+// Since: 2.7
+func (r *FileRepository) DeleteAll(u fyne.URI) error {
+	return os.RemoveAll(u.Path())
 }
 
 // Parent implements repository.HierarchicalRepository.Parent
