@@ -588,7 +588,9 @@ func (c *Canvas) TypedShortcut(shortcut fyne.Shortcut) {
 func (c *Canvas) Unfocus() {
 	focusManagers := c.overlays.ListFocusManagers()
 	for i := range focusManagers {
-		focusManagers[i].Focus(nil)
+		if focusManagers[i] != nil {
+			focusManagers[i].Focus(nil)
+		}
 	}
 
 	if c.contentFocusMgr != nil {
