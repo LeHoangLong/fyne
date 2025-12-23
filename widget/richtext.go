@@ -403,6 +403,23 @@ func (t *RichText) updateRowBounds() {
 	t.propertyLock.RLock()
 	var bounds []rowBoundary
 	maxWidth := t.size.Load().Width - 2*innerPadding + 2*t.inset.Width
+	if maxWidth == 0 && t.Wrapping == fyne.TextWrapWord {
+		for _, seg := range t.Segments {
+			if textSeg, ok := seg.(*TextSegment); ok {
+				textStyle := textSeg.Style.TextStyle
+				textSize := textSeg.size()
+				words := strings.Split(seg.Textual(), " ")
+
+				for _, word := range words {
+					minWidth := fyne.MeasureText(string(word), textSize, textStyle)
+					if maxWidth < minWidth.Width {
+						maxWidth = minWidth.Width
+					}
+				}
+			}
+
+		}
+	}
 	wrapWidth := maxWidth
 
 	var currentBound *rowBoundary
