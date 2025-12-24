@@ -326,6 +326,6 @@ void Java_org_golang_app_GoNativeActivity_setDarkMode(JNIEnv *env, jclass clazz,
     setDarkMode((bool)dark);
 }
 
-void Java_org_golang_app_GoNativeActivity_microphoneData(JNIEnv *env, jclass clazz, jbyte* data, jint len) {
-    onMicrophoneData((bool)dark);
+void Java_org_golang_app_GoNativeActivity_microphoneData(JNIEnv *env, jclass clazz, jshort* data, jint len) {
+    onMicrophoneData(data, len);
 }

@@ -55,7 +55,7 @@ public class GoNativeActivity extends NativeActivity {
 
     private native void setDarkMode(boolean dark);
 
-    private native void microphoneData(byte[] data, int length);
+    private native void microphoneData(short[] data, int length);
 
     private EditText mTextEdit;
     private boolean ignoreKey = false;
@@ -206,7 +206,7 @@ public class GoNativeActivity extends NativeActivity {
             recordingThread = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    byte[] buffer = new byte[bufferSize];
+                    short[] buffer = new short[bufferSize];
                     while (isRecording) {
                         int read = recorder.read(buffer, 0, bufferSize);
                         if (read > 0) {

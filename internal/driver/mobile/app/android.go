@@ -156,9 +156,9 @@ func onCreate(activity *C.ANativeActivity) {
 }
 
 //export onBackPressed
-func onMicrophoneData(data *C.char, len C.int) {
-	arr := C.GoBytes(unsafe.Pointer(data), len)
-	theApp.writeAudio(arr)
+func onMicrophoneData(data *C.short, len C.int) {
+	int16Slice := unsafe.Slice((*int16)(unsafe.Pointer(data)), int(len))
+	theApp.writeAudio(int16Slice)
 }
 
 //export onDestroy

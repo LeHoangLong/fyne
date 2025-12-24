@@ -8,9 +8,13 @@ package app
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"sync"
+	"unsafe"
+
+	"encoding/binary"
 
 	"fyne.io/fyne/v2/internal/async"
 	"fyne.io/fyne/v2/internal/driver/mobile/event/lifecycle"
@@ -182,7 +186,7 @@ func (a *app) RecordAudio() (io.ReadCloser, error) {
 	return reader, nil
 }
 
-func (a *app) writeAudio(data []byte) {
+func (a *app) writeAudio(data []int16) {
 	a.audioMtx.Lock()
 	defer a.audioMtx.Unlock()
 
@@ -191,11 +195,28 @@ func (a *app) writeAudio(data []byte) {
 		return
 	}
 
-	_, err := a.audioWriter.Write(data)
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.LittleEndian, data)
 	if err != nil {
 		a.audioWriter = nil
 		driverStopMicrophone()
+		return
 	}
+
+	_, err = a.audioWriter.Write(buf.Bytes())
+	if err != nil {
+		a.audioWriter = nil
+		driverStopMicrophone()
+		return
+	}
+}
+
+func isLittleEndian() bool {
+	var i int32 = 1
+	// Get a pointer to the integer and cast it to a byte pointer
+	b := *(*byte)(unsafe.Pointer(&i))
+	// If the first byte is 1, it's little endian
+	return b == 1
 }
 
 // TODO: do this for all build targets, not just linux (x11 and Android)? If
