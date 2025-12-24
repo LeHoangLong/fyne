@@ -54,6 +54,8 @@ static jmethodID hide_keyboard_method;
 static jmethodID show_file_open_method;
 static jmethodID show_file_save_method;
 static jmethodID finish_method;
+static jmethodID start_microphone_method;
+static jmethodID stop_microphone_method;
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 	JNIEnv* env;
@@ -96,6 +98,8 @@ void ANativeActivity_onCreate(ANativeActivity *activity, void* savedState, size_
 		hide_keyboard_method = find_static_method(env, current_class, "hideKeyboard", "()V");
 		show_file_open_method = find_static_method(env, current_class, "showFileOpen", "(Ljava/lang/String;)V");
 		show_file_save_method = find_static_method(env, current_class, "showFileSave", "(Ljava/lang/String;Ljava/lang/String;)V");
+		start_microphone_method = find_static_method(env, current_class, "showFileSave", "()V");
+		stop_microphone_method = find_static_method(env, current_class, "stopMicrophone", "()V");
 		finish_method = find_method(env, current_class, "finishActivity", "()V");
 
 		setCurrentContext(activity->vm, (*env)->NewGlobalRef(env, activity->clazz));
@@ -258,6 +262,22 @@ void hideKeyboard(JNIEnv* env) {
 	);
 }
 
+void startMicrophone(JNIEnv* env) {
+	(*env)->CallStaticVoidMethod(
+		env,
+		current_class,
+		start_microphone_method,
+	);
+}
+
+void stopMicrophone(JNIEnv* env) {
+	(*env)->CallStaticVoidMethod(
+		env,
+		current_class,
+		stop_microphone_method,
+	);
+}
+
 void showFileOpen(JNIEnv* env, char* mimes) {
     jstring mimesJString = (*env)->NewStringUTF(env, mimes);
     (*env)->CallStaticVoidMethod(
@@ -304,4 +324,8 @@ void Java_org_golang_app_GoNativeActivity_backPressed(JNIEnv *env, jclass clazz)
 
 void Java_org_golang_app_GoNativeActivity_setDarkMode(JNIEnv *env, jclass clazz, jboolean dark) {
     setDarkMode((bool)dark);
+}
+
+void Java_org_golang_app_GoNativeActivity_microphoneData(JNIEnv *env, jclass clazz, jbyte* data, jint len) {
+    onMicrophoneData((bool)dark);
 }

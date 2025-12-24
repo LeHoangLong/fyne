@@ -462,6 +462,12 @@ func driverShowFileOpenPicker(func(string, func()), *FileFilter) {
 func driverShowFileSavePicker(func(string, func()), *FileFilter, string) {
 }
 
+func driverStartMicrophone() {
+}
+
+func driverStopMicrophone() {
+}
+
 func UseExperimentalKeyboardV2() bool {
 	return false
 }

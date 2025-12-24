@@ -353,3 +353,9 @@ func GetCurrentCursorOffset() (int, int) {
 func SetCurrentCursorOffset(offsetStart int, offsetEnd int) {
 	C.setCurrentCursorOffset(C.int(offsetStart), C.int(offsetEnd))
 }
+
+func driverStartMicrophone() {
+}
+
+func driverStopMicrophone() {
+}

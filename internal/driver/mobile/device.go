@@ -1,6 +1,9 @@
 package mobile
 
 import (
+	"fmt"
+	"io"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/mobile"
 	"fyne.io/fyne/v2/internal/driver/mobile/event/size"
@@ -19,6 +22,7 @@ var (
 
 // Declare conformity with Device
 var _ fyne.Device = (*device)(nil)
+var _ mobile.Device = (*device)(nil)
 
 func (*device) Locale() fyne.Locale {
 	return lang.SystemLocale()
@@ -55,4 +59,15 @@ func (*device) ShowVirtualKeyboardType(keyboard mobile.KeyboardType) {
 
 func (*device) HideVirtualKeyboard() {
 	hideVirtualKeyboard()
+}
+
+func (*device) RecordAudio() (io.ReadCloser, error) {
+	if d, ok := fyne.CurrentApp().Driver().(*driver); ok {
+		if d.app == nil { // not yet running
+			return nil, fmt.Errorf("app not running")
+		}
+
+		return d.app.RecordAudio()
+	}
+	return nil, fmt.Errorf("not mobile driver")
 }

@@ -155,6 +155,12 @@ func onCreate(activity *C.ANativeActivity) {
 	windowConfigChange <- windowConfigRead(activity)
 }
 
+//export onBackPressed
+func onMicrophoneData(data *C.char, len C.int) {
+	arr := C.GoBytes(unsafe.Pointer(data), len)
+	theApp.writeAudio(arr)
+}
+
 //export onDestroy
 func onDestroy(activity *C.ANativeActivity) {
 	activityDestroyed <- struct{}{}
@@ -335,6 +341,26 @@ func hideSoftInput(vm, jniEnv, ctx uintptr) error {
 	env := (*C.JNIEnv)(unsafe.Pointer(jniEnv)) // not a Go heap pointer
 	C.hideKeyboard(env)
 	return nil
+}
+
+func driverStartMicrophone() {
+	if err := mobileinit.RunOnJVM(func(vm, jniEnv, ctx uintptr) error {
+		env := (*C.JNIEnv)(unsafe.Pointer(jniEnv)) // not a Go heap pointer
+		C.startMicrophone(env)
+		return nil
+	}); err != nil {
+		log.Fatalf("app: %v", err)
+	}
+}
+
+func driverStopMicrophone() {
+	if err := mobileinit.RunOnJVM(func(vm, jniEnv, ctx uintptr) error {
+		env := (*C.JNIEnv)(unsafe.Pointer(jniEnv)) // not a Go heap pointer
+		C.stopMicrophone(env)
+		return nil
+	}); err != nil {
+		log.Fatalf("app: %v", err)
+	}
 }
 
 var fileCallback func(string, func())

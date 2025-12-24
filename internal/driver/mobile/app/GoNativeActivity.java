@@ -9,6 +9,10 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.net.Uri;
+import android.Manifest;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
@@ -28,53 +32,64 @@ import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 
 public class GoNativeActivity extends NativeActivity {
-	private static GoNativeActivity goNativeActivity;
-	private static final int FILE_OPEN_CODE = 1;
-	private static final int FILE_SAVE_CODE = 2;
+    private static GoNativeActivity goNativeActivity;
+    private static final int FILE_OPEN_CODE = 1;
+    private static final int FILE_SAVE_CODE = 2;
 
-	private static final int DEFAULT_INPUT_TYPE = InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
+    private static final int DEFAULT_INPUT_TYPE = InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
 
-	private static final int DEFAULT_KEYBOARD_CODE = 0;
-	private static final int SINGLELINE_KEYBOARD_CODE = 1;
-	private static final int NUMBER_KEYBOARD_CODE = 2;
-	private static final int PASSWORD_KEYBOARD_CODE = 3;
+    private static final int DEFAULT_KEYBOARD_CODE = 0;
+    private static final int SINGLELINE_KEYBOARD_CODE = 1;
+    private static final int NUMBER_KEYBOARD_CODE = 2;
+    private static final int PASSWORD_KEYBOARD_CODE = 3;
 
     private native void filePickerReturned(String str);
+
     private native void insetsChanged(int top, int bottom, int left, int right);
+
     private native void keyboardTyped(String str);
+
     private native void keyboardDelete();
+
     private native void backPressed();
+
     private native void setDarkMode(boolean dark);
 
-	private EditText mTextEdit;
+    private native void microphoneData(byte[] data, int length);
+
+    private EditText mTextEdit;
     private boolean ignoreKey = false;
-	private boolean keyboardUp = false;
+    private boolean keyboardUp = false;
 
-	public GoNativeActivity() {
-		super();
-		goNativeActivity = this;
-	}
+    private AudioRecord recorder;
+    private Thread recordingThread;
+    private boolean isRecording = false;
 
-	String getTmpdir() {
-		return getCacheDir().getAbsolutePath();
-	}
+    public GoNativeActivity() {
+        super();
+        goNativeActivity = this;
+    }
 
-	void updateLayout() {
-	    try {
+    String getTmpdir() {
+        return getCacheDir().getAbsolutePath();
+    }
+
+    void updateLayout() {
+        try {
             WindowInsets insets = getWindow().getDecorView().getRootWindowInsets();
             if (insets == null) {
                 return;
             }
 
             insetsChanged(insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetBottom(),
-                insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetRight());
+                    insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetRight());
         } catch (java.lang.NoSuchMethodError e) {
-    	    Rect insets = new Rect();
+            Rect insets = new Rect();
             getWindow().getDecorView().getWindowVisibleDisplayFrame(insets);
 
             View view = findViewById(android.R.id.content).getRootView();
             insetsChanged(insets.top, view.getHeight() - insets.height() - insets.top,
-                insets.left, view.getWidth() - insets.width() - insets.left);
+                    insets.left, view.getWidth() - insets.width() - insets.left);
         }
     }
 
@@ -106,7 +121,7 @@ public class GoNativeActivity extends NativeActivity {
                     default:
                         Log.e("Fyne", "unknown keyboard type, use default");
                 }
-                mTextEdit.setImeOptions(imeOptions|EditorInfo.IME_FLAG_NO_FULLSCREEN);
+                mTextEdit.setImeOptions(imeOptions | EditorInfo.IME_FLAG_NO_FULLSCREEN);
                 mTextEdit.setInputType(inputType);
 
                 mTextEdit.setOnEditorActionListener(new OnEditorActionListener() {
@@ -140,6 +155,14 @@ public class GoNativeActivity extends NativeActivity {
         goNativeActivity.keyboardUp = false;
     }
 
+    static void startMicrophone() {
+        goNativeActivity.doStartMicrophone();
+    }
+
+    static void stopMicrophone() {
+        goNativeActivity.doStopMicrophone();
+    }
+
     void doHideKeyboard() {
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         View view = findViewById(android.R.id.content).getRootView();
@@ -151,6 +174,79 @@ public class GoNativeActivity extends NativeActivity {
                 mTextEdit.setVisibility(View.GONE);
             }
         });
+    }
+
+    void doStartMicrophone() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, 1001);
+                return;
+            }
+        }
+
+        if (isRecording) {
+            return;
+        }
+
+        int sampleRate = 44100;
+        int channelConfig = AudioFormat.CHANNEL_IN_MONO;
+        int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
+        final int bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat);
+
+        try {
+            recorder = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, channelConfig, audioFormat,
+                    bufferSize);
+            if (recorder.getState() != AudioRecord.STATE_INITIALIZED) {
+                Log.e("Fyne", "AudioRecord initialization failed");
+                return;
+            }
+            recorder.startRecording();
+            isRecording = true;
+
+            recordingThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    byte[] buffer = new byte[bufferSize];
+                    while (isRecording) {
+                        int read = recorder.read(buffer, 0, bufferSize);
+                        if (read > 0) {
+                            microphoneData(buffer, read);
+                        }
+                    }
+                }
+            });
+            recordingThread.start();
+        } catch (Exception e) {
+            Log.e("Fyne", "startMicrophone failed", e);
+        }
+    }
+
+    void doStopMicrophone() {
+        isRecording = false;
+        if (recorder != null) {
+            try {
+                recorder.stop();
+                recorder.release();
+            } catch (Exception e) {
+                Log.e("Fyne", "stopMicrophone failed", e);
+            }
+            recorder = null;
+        }
+        if (recordingThread != null) {
+            try {
+                recordingThread.join();
+            } catch (InterruptedException e) {
+                // ignore
+            }
+            recordingThread = null;
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode == 1001 && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            doStartMicrophone();
+        }
     }
 
     static void showFileOpen(String mimes) {
@@ -189,58 +285,59 @@ public class GoNativeActivity extends NativeActivity {
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         startActivityForResult(Intent.createChooser(intent, "Save File"), FILE_SAVE_CODE);
     }
-	static int getRune(int deviceId, int keyCode, int metaState) {
-		try {
-			int rune = KeyCharacterMap.load(deviceId).get(keyCode, metaState);
-			if (rune == 0) {
-				return -1;
-			}
-			return rune;
-		} catch (KeyCharacterMap.UnavailableException e) {
-			return -1;
-		} catch (Exception e) {
-			Log.e("Fyne", "exception reading KeyCharacterMap", e);
-			return -1;
-		}
-	}
 
-	private void load() {
-		// Interestingly, NativeActivity uses a different method
-		// to find native code to execute, avoiding
-		// System.loadLibrary. The result is Java methods
-		// implemented in C with JNIEXPORT (and JNI_OnLoad) are not
-		// available unless an explicit call to System.loadLibrary
-		// is done. So we do it here, borrowing the name of the
-		// library from the same AndroidManifest.xml metadata used
-		// by NativeActivity.
-		try {
-			ActivityInfo ai = getPackageManager().getActivityInfo(
-					getIntent().getComponent(), PackageManager.GET_META_DATA);
-			if (ai.metaData == null) {
-				Log.e("Fyne", "loadLibrary: no manifest metadata found");
-				return;
-			}
-			String libName = ai.metaData.getString("android.app.lib_name");
-			System.loadLibrary(libName);
-		} catch (Exception e) {
-			Log.e("Fyne", "loadLibrary failed", e);
-		}
-	}
+    static int getRune(int deviceId, int keyCode, int metaState) {
+        try {
+            int rune = KeyCharacterMap.load(deviceId).get(keyCode, metaState);
+            if (rune == 0) {
+                return -1;
+            }
+            return rune;
+        } catch (KeyCharacterMap.UnavailableException e) {
+            return -1;
+        } catch (Exception e) {
+            Log.e("Fyne", "exception reading KeyCharacterMap", e);
+            return -1;
+        }
+    }
 
-	@Override
-	public void onCreate(Bundle savedInstanceState) {
-		load();
-		super.onCreate(savedInstanceState);
-		setupEntry();
-		updateTheme(getResources().getConfiguration());
+    private void load() {
+        // Interestingly, NativeActivity uses a different method
+        // to find native code to execute, avoiding
+        // System.loadLibrary. The result is Java methods
+        // implemented in C with JNIEXPORT (and JNI_OnLoad) are not
+        // available unless an explicit call to System.loadLibrary
+        // is done. So we do it here, borrowing the name of the
+        // library from the same AndroidManifest.xml metadata used
+        // by NativeActivity.
+        try {
+            ActivityInfo ai = getPackageManager().getActivityInfo(
+                    getIntent().getComponent(), PackageManager.GET_META_DATA);
+            if (ai.metaData == null) {
+                Log.e("Fyne", "loadLibrary: no manifest metadata found");
+                return;
+            }
+            String libName = ai.metaData.getString("android.app.lib_name");
+            System.loadLibrary(libName);
+        } catch (Exception e) {
+            Log.e("Fyne", "loadLibrary failed", e);
+        }
+    }
 
-		View view = findViewById(android.R.id.content).getRootView();
-		view.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-			public void onLayoutChange (View v, int left, int top, int right, int bottom,
-			                            int oldLeft, int oldTop, int oldRight, int oldBottom) {
-				GoNativeActivity.this.updateLayout();
-			}
-		});
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        load();
+        super.onCreate(savedInstanceState);
+        setupEntry();
+        updateTheme(getResources().getConfiguration());
+
+        View view = findViewById(android.R.id.content).getRootView();
+        view.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            public void onLayoutChange(View v, int left, int top, int right, int bottom,
+                    int oldLeft, int oldTop, int oldRight, int oldBottom) {
+                GoNativeActivity.this.updateLayout();
+            }
+        });
     }
 
     private void setupEntry() {
@@ -252,7 +349,7 @@ public class GoNativeActivity extends NativeActivity {
                 mTextEdit.setInputType(DEFAULT_INPUT_TYPE);
 
                 FrameLayout.LayoutParams mEditTextLayoutParams = new FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+                        FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
                 mTextEdit.setLayoutParams(mEditTextLayoutParams);
                 addContentView(mTextEdit, mEditTextLayoutParams);
 
@@ -273,7 +370,7 @@ public class GoNativeActivity extends NativeActivity {
                             count = count - 1;
                         }
                         if (count > 0) {
-                            keyboardTyped(s.subSequence(start,start+count).toString());
+                            keyboardTyped(s.subSequence(start, start + count).toString());
                         }
                     }
 
@@ -304,9 +401,9 @@ public class GoNativeActivity extends NativeActivity {
                 });
             }
         });
-	}
+    }
 
-	@Override
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         // unhandled request
         if (requestCode != FILE_OPEN_CODE && requestCode != FILE_SAVE_CODE) {

@@ -7,6 +7,11 @@
 package app
 
 import (
+	"bufio"
+	"fmt"
+	"io"
+	"sync"
+
 	"fyne.io/fyne/v2/internal/async"
 	"fyne.io/fyne/v2/internal/driver/mobile/event/lifecycle"
 	"fyne.io/fyne/v2/internal/driver/mobile/event/size"
@@ -59,6 +64,8 @@ type App interface {
 	HideVirtualKeyboard()
 	ShowFileOpenPicker(func(string, func()), *FileFilter)
 	ShowFileSavePicker(func(string, func()), *FileFilter, string)
+
+	RecordAudio() (io.ReadCloser, error)
 }
 
 // FileFilter is a filter of files.
@@ -104,6 +111,9 @@ type app struct {
 	lifecycleStage lifecycle.Stage
 	publish        chan struct{}
 	publishResult  chan PublishResult
+
+	audioWriter io.Writer
+	audioMtx    sync.Mutex
 
 	glctx  gl.Context
 	worker gl.Worker
@@ -154,6 +164,38 @@ func (a *app) ShowFileOpenPicker(callback func(string, func()), filter *FileFilt
 }
 func (a *app) ShowFileSavePicker(callback func(string, func()), filter *FileFilter, filename string) {
 	driverShowFileSavePicker(callback, filter, filename)
+}
+
+func (a *app) RecordAudio() (io.ReadCloser, error) {
+	a.audioMtx.Lock()
+	defer a.audioMtx.Unlock()
+
+	if a.audioWriter != nil {
+		return nil, fmt.Errorf("device busy")
+	}
+
+	reader, writer := io.Pipe()
+	bufWriter := bufio.NewWriter(writer)
+	a.audioWriter = bufWriter
+	driverStartMicrophone()
+
+	return reader, nil
+}
+
+func (a *app) writeAudio(data []byte) {
+	a.audioMtx.Lock()
+	defer a.audioMtx.Unlock()
+
+	if a.audioWriter == nil {
+		driverStopMicrophone()
+		return
+	}
+
+	_, err := a.audioWriter.Write(data)
+	if err != nil {
+		a.audioWriter = nil
+		driverStopMicrophone()
+	}
 }
 
 // TODO: do this for all build targets, not just linux (x11 and Android)? If
