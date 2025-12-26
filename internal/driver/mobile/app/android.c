@@ -98,7 +98,7 @@ void ANativeActivity_onCreate(ANativeActivity *activity, void* savedState, size_
 		hide_keyboard_method = find_static_method(env, current_class, "hideKeyboard", "()V");
 		show_file_open_method = find_static_method(env, current_class, "showFileOpen", "(Ljava/lang/String;)V");
 		show_file_save_method = find_static_method(env, current_class, "showFileSave", "(Ljava/lang/String;Ljava/lang/String;)V");
-		start_microphone_method = find_static_method(env, current_class, "showFileSave", "()V");
+		start_microphone_method = find_static_method(env, current_class, "startMicrophone", "()V");
 		stop_microphone_method = find_static_method(env, current_class, "stopMicrophone", "()V");
 		finish_method = find_method(env, current_class, "finishActivity", "()V");
 
@@ -266,7 +266,7 @@ void startMicrophone(JNIEnv* env) {
 	(*env)->CallStaticVoidMethod(
 		env,
 		current_class,
-		start_microphone_method,
+		start_microphone_method
 	);
 }
 
@@ -274,7 +274,7 @@ void stopMicrophone(JNIEnv* env) {
 	(*env)->CallStaticVoidMethod(
 		env,
 		current_class,
-		stop_microphone_method,
+		stop_microphone_method
 	);
 }
 

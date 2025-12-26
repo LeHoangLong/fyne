@@ -48,6 +48,8 @@ void hideKeyboard(JNIEnv* env);
 void showFileOpen(JNIEnv* env, char* mimes);
 void showFileSave(JNIEnv* env, char* mimes, char* filename);
 void finish(JNIEnv* env, jobject ctx);
+void startMicrophone(JNIEnv* env);
+void stopMicrophone(JNIEnv* env);
 
 void Java_org_golang_app_GoNativeActivity_filePickerReturned(JNIEnv *env, jclass clazz, jstring str);
 */
@@ -155,7 +157,7 @@ func onCreate(activity *C.ANativeActivity) {
 	windowConfigChange <- windowConfigRead(activity)
 }
 
-//export onBackPressed
+//export onMicrophoneData
 func onMicrophoneData(data *C.short, len C.int) {
 	int16Slice := unsafe.Slice((*int16)(unsafe.Pointer(data)), int(len))
 	theApp.writeAudio(int16Slice)

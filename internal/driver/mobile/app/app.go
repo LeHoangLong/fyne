@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"unsafe"
 
 	"encoding/binary"
 
@@ -179,14 +178,47 @@ func (a *app) RecordAudio() (io.ReadCloser, error) {
 	}
 
 	reader, writer := io.Pipe()
+	ret := audioStream{
+		reader: reader,
+		onClose: func() {
+			a.audioMtx.Lock()
+			defer a.audioMtx.Unlock()
+
+			a.audioWriter = nil
+			driverStopMicrophone()
+		},
+	}
+
 	bufWriter := bufio.NewWriter(writer)
 	a.audioWriter = bufWriter
 	driverStartMicrophone()
 
-	return reader, nil
+	return &ret, nil
 }
 
+type audioStream struct {
+	reader  io.ReadCloser
+	onClose func()
+}
+
+// Close implements [io.ReadCloser].
+func (a *audioStream) Close() error {
+	a.onClose()
+	return a.reader.Close()
+}
+
+// Read implements [io.ReadCloser].
+func (a *audioStream) Read(p []byte) (n int, err error) {
+	return a.reader.Read(p)
+}
+
+var _ io.ReadCloser = (*audioStream)(nil)
+
 func (a *app) writeAudio(data []int16) {
+	if a.audioWriter == nil {
+		return
+	}
+
 	a.audioMtx.Lock()
 	defer a.audioMtx.Unlock()
 
@@ -209,14 +241,6 @@ func (a *app) writeAudio(data []int16) {
 		driverStopMicrophone()
 		return
 	}
-}
-
-func isLittleEndian() bool {
-	var i int32 = 1
-	// Get a pointer to the integer and cast it to a byte pointer
-	b := *(*byte)(unsafe.Pointer(&i))
-	// If the first byte is 1, it's little endian
-	return b == 1
 }
 
 // TODO: do this for all build targets, not just linux (x11 and Android)? If
