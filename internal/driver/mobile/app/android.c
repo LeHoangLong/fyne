@@ -326,6 +326,16 @@ void Java_org_golang_app_GoNativeActivity_setDarkMode(JNIEnv *env, jclass clazz,
     setDarkMode((bool)dark);
 }
 
-void Java_org_golang_app_GoNativeActivity_microphoneData(JNIEnv *env, jclass clazz, jshort* data, jint len) {
-    onMicrophoneData(data, len);
+void Java_org_golang_app_GoNativeActivity_microphoneData(JNIEnv *env, jclass clazz, jshortArray data, jint len) {
+    // Get pointer to the jshortArray elements
+    jshort* cArray = (*env)->GetShortArrayElements(env, data, NULL);
+    if (cArray == NULL) {
+        return; // Exception occurred or out of memory
+    }
+
+    // Call the Go function with the C array
+    onMicrophoneData(cArray, len);
+
+    // Release the array elements (JNI_ABORT means don't copy back changes)
+    (*env)->ReleaseShortArrayElements(env, data, cArray, JNI_ABORT);
 }
