@@ -15,6 +15,10 @@ const (
 	NumberKeyboard
 )
 
+// KeyboardV2Event represents an experimental keyboard event from the platform-specific keyboard
+type KeyboardV2Event struct {
+}
+
 //export keyboardTyped
 func keyboardTyped(str *C.char) {
 	for _, r := range C.GoString(str) {

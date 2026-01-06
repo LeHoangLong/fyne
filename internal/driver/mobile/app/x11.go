@@ -23,6 +23,7 @@ void swapBuffers(void);
 */
 import "C"
 import (
+	"fmt"
 	"runtime"
 	"time"
 
@@ -483,3 +484,7 @@ func GetCurrentCursorOffset() (int, int) {
 }
 
 func SetCurrentCursorOffset(offsetStart int, offsetEnd int) {}
+
+func driverGetExperimentalKeyboardV2Event() (<-chan KeyboardV2Event, error) {
+	return nil, fmt.Errorf("GetExperimentalKeyboardV2Event is not implemented on X11/Linux")
+}

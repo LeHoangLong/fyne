@@ -24,6 +24,7 @@ uint64 threadID();
 */
 import "C"
 import (
+	"fmt"
 	"log"
 	"runtime"
 
@@ -422,4 +423,8 @@ func driverStartMicrophone() {
 }
 
 func driverStopMicrophone() {
+}
+
+func driverGetExperimentalKeyboardV2Event() (<-chan KeyboardV2Event, error) {
+	return nil, fmt.Errorf("GetExperimentalKeyboardV2Event is not implemented on macOS desktop")
 }

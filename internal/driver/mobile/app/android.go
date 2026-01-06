@@ -925,3 +925,7 @@ func GetCurrentCursorOffset() (int, int) {
 }
 
 func SetCurrentCursorOffset(offsetStart int, offsetEnd int) {}
+
+func driverGetExperimentalKeyboardV2Event() (<-chan KeyboardV2Event, error) {
+	return nil, fmt.Errorf("GetExperimentalKeyboardV2Event is not implemented on Android")
+}

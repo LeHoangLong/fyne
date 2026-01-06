@@ -36,6 +36,7 @@ void setCurrentTextField(char *value);
 int getCurrentCursorOffsetStart();
 int getCurrentCursorOffsetEnd();
 void setCurrentCursorOffset(int offsetStart, int offsetEnd);
+void keyboardV2Event(int rangeLocation, int rangeLength, char* replacementString);
 */
 import "C"
 import (
@@ -358,4 +359,25 @@ func driverStartMicrophone() {
 }
 
 func driverStopMicrophone() {
+}
+
+var keyboardV2EventChan chan KeyboardV2Event
+
+func driverGetExperimentalKeyboardV2Event() (<-chan KeyboardV2Event, error) {
+	if keyboardV2EventChan == nil {
+		keyboardV2EventChan = make(chan KeyboardV2Event, 100)
+	}
+	return keyboardV2EventChan, nil
+}
+
+//export keyboardV2Event
+func keyboardV2Event(rangeLocation, rangeLength C.int, replacementString *C.char) {
+	if keyboardV2EventChan != nil {
+		event := KeyboardV2Event{}
+		select {
+		case keyboardV2EventChan <- event:
+		default:
+			// Channel is full, drop the event to avoid blocking
+		}
+	}
 }

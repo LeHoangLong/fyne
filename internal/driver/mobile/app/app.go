@@ -69,6 +69,7 @@ type App interface {
 	ShowFileSavePicker(func(string, func()), *FileFilter, string)
 
 	RecordAudio() (io.ReadCloser, error)
+	GetExperimentalKeyboardV2Event() (<-chan KeyboardV2Event, error)
 }
 
 // FileFilter is a filter of files.
@@ -241,6 +242,10 @@ func (a *app) writeAudio(data []int16) {
 		driverStopMicrophone()
 		return
 	}
+}
+
+func (a *app) GetExperimentalKeyboardV2Event() (<-chan KeyboardV2Event, error) {
+	return driverGetExperimentalKeyboardV2Event()
 }
 
 // TODO: do this for all build targets, not just linux (x11 and Android)? If

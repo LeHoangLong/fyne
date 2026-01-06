@@ -565,20 +565,46 @@ func (d *driver) loopKeyboard() {
 		if !app.UseExperimentalKeyboardV2() {
 			return
 		}
+
+		// Try to get the experimental keyboard V2 event channel
+		eventChan, err := d.app.GetExperimentalKeyboardV2Event()
+		if err != nil {
+			// Fall back to polling mode if not supported
+			log.Println("KeyboardV2Event not available, falling back to polling:", err)
+			d.loopKeyboardPolling()
+			return
+		}
+
+		// Event-based mode for iOS
 		var canvasInst *canvas
 		var previousFocused fyne.Focusable
 		var previousKeyboardValue string
+
+		// Polling ticker for sync operations (checking focus changes, etc.)
+		syncTicker := time.NewTicker(50 * time.Millisecond)
+		defer syncTicker.Stop()
+
 		for {
-			time.Sleep(20 * time.Millisecond)
-			if canvasInst == nil {
-				canvasInst = d.currentWindow().canvas
+			select {
+			case _, ok := <-eventChan:
+				if !ok {
+					return // channel closed
+				}
+				// Handle keyboard V2 event - just use as a trigger to poll keyboard state
+				log.Println("KeyboardV2Event received, checking keyboard state")
+
+				// Process the event by checking keyboard state
 				if canvasInst == nil {
+					canvasInst = d.currentWindow().canvas
+					if canvasInst == nil {
+						continue
+					}
+				}
+
+				focused := canvasInst.Focused()
+				if focused == nil {
 					continue
 				}
-			}
-
-			focused := canvasInst.Focused()
-			if focused != nil {
 
 				entryText, ok := getField(focused, "Text")
 				if !ok {
@@ -594,23 +620,59 @@ func (d *driver) loopKeyboard() {
 					continue
 				}
 
-				if previousFocused != focused {
-					previousFocused = focused
-					app.SetCurrentKeyboardValue(entryTextStr)
-					time.Sleep(50 * time.Millisecond)
-					continue
+				// Get the new text from the keyboard
+				text := app.GetCurrentKeyboardValue()
+				offsetStart, offsetEnd := app.GetCurrentCursorOffset()
+
+				// Update the entry if text changed
+				if entryTextStr != text {
+					tempEntry.SetTextWithHistoryAndCursor(text, offsetStart)
+					previousKeyboardValue = text
+				} else {
+					currentEntryOffsetStart, currentEntryOffsetEnd := tempEntry.GetCursorOffset()
+					if currentEntryOffsetStart != offsetStart || currentEntryOffsetEnd != offsetEnd {
+						app.SetCurrentCursorOffset(currentEntryOffsetStart, currentEntryOffsetEnd)
+					}
 				}
 
-				func() {
+			case <-syncTicker.C:
+				// Periodic sync operations (focus changes, cursor sync, etc.)
+				if canvasInst == nil {
+					canvasInst = d.currentWindow().canvas
+					if canvasInst == nil {
+						continue
+					}
+				}
 
+				focused := canvasInst.Focused()
+				if focused != nil {
+					entryText, ok := getField(focused, "Text")
+					if !ok {
+						continue
+					}
+					entryTextStr, ok := entryText.(string)
+					if !ok {
+						continue
+					}
+
+					tempEntry, ok := focused.(Entry)
+					if !ok {
+						continue
+					}
+
+					if previousFocused != focused {
+						previousFocused = focused
+						app.SetCurrentKeyboardValue(entryTextStr)
+						continue
+					}
+
+					// Sync cursor position changes from entry to keyboard
 					text := app.GetCurrentKeyboardValue()
 					defer func() { previousKeyboardValue = text }()
 					offsetStart, offsetEnd := app.GetCurrentCursorOffset()
 					if entryTextStr != text {
 						if previousKeyboardValue == text {
 							app.SetCurrentKeyboardValue(entryTextStr)
-						} else {
-							tempEntry.SetTextWithHistoryAndCursor(text, offsetStart)
 						}
 					} else {
 						currentEntryOffsetStart, currentEntryOffsetEnd := tempEntry.GetCursorOffset()
@@ -618,10 +680,81 @@ func (d *driver) loopKeyboard() {
 							app.SetCurrentCursorOffset(currentEntryOffsetStart, currentEntryOffsetEnd)
 						}
 					}
-				}()
+				}
 			}
 		}
 	}()
+}
+
+func (d *driver) loopKeyboardPolling() {
+	type Entry interface {
+		SetTextWithHistoryAndCursor(text string, offset int)
+		GetCursorOffset() (int, int)
+	}
+
+	var canvasInst *canvas
+	var previousFocused fyne.Focusable
+	var previousKeyboardValue string
+	for {
+		time.Sleep(20 * time.Millisecond)
+		if canvasInst == nil {
+			canvasInst = d.currentWindow().canvas
+			if canvasInst == nil {
+				continue
+			}
+		}
+
+		focused := canvasInst.Focused()
+		if focused != nil {
+
+			entryText, ok := getField(focused, "Text")
+			if !ok {
+				continue
+			}
+			entryTextStr, ok := entryText.(string)
+			if !ok {
+				continue
+			}
+
+			tempEntry, ok := focused.(Entry)
+			if !ok {
+				continue
+			}
+
+			if previousFocused != focused {
+				previousFocused = focused
+				app.SetCurrentKeyboardValue(entryTextStr)
+				time.Sleep(50 * time.Millisecond)
+				continue
+			}
+
+			func() {
+
+				text := app.GetCurrentKeyboardValue()
+				defer func() { previousKeyboardValue = text }()
+				offsetStart, offsetEnd := app.GetCurrentCursorOffset()
+				if entryTextStr != text {
+					if previousKeyboardValue == text {
+						app.SetCurrentKeyboardValue(entryTextStr)
+					} else {
+						tempEntry.SetTextWithHistoryAndCursor(text, offsetStart)
+					}
+				} else {
+					currentEntryOffsetStart, currentEntryOffsetEnd := tempEntry.GetCursorOffset()
+					if currentEntryOffsetStart != offsetStart || currentEntryOffsetEnd != offsetEnd {
+						app.SetCurrentCursorOffset(currentEntryOffsetStart, currentEntryOffsetEnd)
+					}
+				}
+			}()
+		}
+	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func getField(obj interface{}, fieldName string) (interface{}, bool) {

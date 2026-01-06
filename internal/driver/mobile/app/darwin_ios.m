@@ -255,13 +255,21 @@ static void sendTouches(int change, NSSet* touches) {
 // Add this as an instance variable or property in your class
 
 - (BOOL)textField:(UITextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string {
+    // Send the KeyboardV2Event to the Go channel on the next event loop
+    int loc = (int)range.location;
+    int len = (int)range.length;
+    NSString *str = [string copy];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        keyboardV2Event(loc, len, (char *)[str UTF8String]);
+    });
+
     /*
     NSUInteger originalLength = string.length;
     NSLog(@"SIGGRAPH Replacement String: %@", string);
     NSLog(@"SIGGRAPH Range: Location = %lu, Length = %lu", (unsigned long)range.location, (unsigned long)range.length);
     NSLog(@"SIGGRAPH Current Text: %@", textField.text);
     NSLog(@"SIGGRAPH display Text: %@", self.currentDisplayText);
-    
+
     // Get the new text that will result from this change
     NSString *newText = [textField.text stringByReplacingCharactersInRange:range withString:string];
     NSLog(@"SIGGRAPH new Text: %@", newText);
@@ -270,7 +278,7 @@ static void sendTouches(int change, NSSet* touches) {
     // Find the last index where both strings match
     NSUInteger lastMatchingIndex = 0;
     NSUInteger minLength = MIN(self.currentDisplayText.length, newText.length);
-    
+
     for (NSUInteger i = 0; i < minLength; i++) {
         if ([self.currentDisplayText characterAtIndex:i] == [newText characterAtIndex:i]) {
             lastMatchingIndex = i + 1;
@@ -278,19 +286,19 @@ static void sendTouches(int change, NSSet* touches) {
             break;
         }
     }
-    
+
     // Calculate how many deletions we need
     NSUInteger deletionsNeeded = self.currentDisplayText.length - lastMatchingIndex;
     for (NSUInteger i = 0; i < deletionsNeeded; i++) {
         keyboardDelete();
     }
-    
+
     // Insert the new characters from the matching point
     if (lastMatchingIndex < newText.length) {
         NSString *charsToInsert = [newText substringFromIndex:lastMatchingIndex];
         keyboardTyped((char *)[charsToInsert UTF8String]);
     }
-    
+
     // Update our current display text
     self.currentDisplayText = newText;
     if (originalLength == 0) {
@@ -323,6 +331,13 @@ static void sendTouches(int change, NSSet* touches) {
     });
 
     return NO;
+}
+
+- (void)textFieldDidChangeSelection:(UITextField *)textField {
+    // Send KeyboardV2Event on selection change (cursor movement)
+    dispatch_async(dispatch_get_main_queue(), ^{
+        keyboardV2Event(0, 0, "");
+    });
 }
 
 @end

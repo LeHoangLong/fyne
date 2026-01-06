@@ -6,7 +6,10 @@
 
 package app
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 func main(f func(a App)) {
 	log.Fatalln("Running mobile simulation mode does not currently work on Windows.")
@@ -30,4 +33,14 @@ func driverShowFileOpenPicker(func(string, func()), *FileFilter) {
 
 // driverShowFileSavePicker does nothing on desktop
 func driverShowFileSavePicker(func(string, func()), *FileFilter, string) {
+}
+
+func driverStartMicrophone() {
+}
+
+func driverStopMicrophone() {
+}
+
+func driverGetExperimentalKeyboardV2Event() (<-chan KeyboardV2Event, error) {
+	return nil, fmt.Errorf("GetExperimentalKeyboardV2Event is not implemented on Windows")
 }
