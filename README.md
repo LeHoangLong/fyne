@@ -184,7 +184,10 @@ To go all the way with Fyne on your desktop / laptop computer you could install 
 ![FyneDesk screenshopt in dark mode](https://fyshos.com/img/desktop.png)
 
 
+## gendex
+cd cmd/fyne/internal/mobile
+go run gendex/gendex.go
 
 ## install fyne command
-cd fyne/cmd
+cd cmd
 go install ./fyne

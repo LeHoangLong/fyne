@@ -15,6 +15,16 @@ import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CancellationSignal;
+import android.os.ParcelFileDescriptor;
+import android.print.PageRange;
+import android.print.PrintAttributes;
+import android.print.PrintDocumentAdapter;
+import android.print.PrintDocumentInfo;
+import android.print.PrintManager;
+import android.print.PrinterId;
+import android.print.PrinterInfo;
+import android.printservice.PrintService;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -30,6 +40,11 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
+
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 public class GoNativeActivity extends NativeActivity {
     private static GoNativeActivity goNativeActivity;
@@ -161,6 +176,10 @@ public class GoNativeActivity extends NativeActivity {
 
     static void stopMicrophone() {
         goNativeActivity.doStopMicrophone();
+    }
+
+    static void printFile(String filePath) {
+        goNativeActivity.doPrintFile(filePath);
     }
 
     void doHideKeyboard() {
@@ -450,4 +469,81 @@ public class GoNativeActivity extends NativeActivity {
         boolean dark = (config.uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
         setDarkMode(dark);
     }
+
+    void doPrintFile(String filePath) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+            Log.e("Fyne", "Printing requires Android 4.4 (KitKat) or higher");
+            return;
+        }
+
+        PrintManager printManager = (PrintManager) getSystemService(Context.PRINT_SERVICE);
+        if (printManager == null) {
+            Log.e("Fyne", "PrintManager not available");
+            return;
+        }
+
+        String tmp = "Fyne Print Job";
+        // Extract filename from path for a better job name
+        int lastSlash = filePath.lastIndexOf('/');
+        if (lastSlash >= 0 && lastSlash < filePath.length() - 1) {
+            tmp = filePath.substring(lastSlash + 1);
+        }
+
+        String jobName = tmp;
+        PrintDocumentAdapter adapter = new PrintDocumentAdapter() {
+            @Override
+            public void onLayout(PrintAttributes oldAttributes, PrintAttributes newAttributes,
+                    CancellationSignal cancellationSignal, LayoutResultCallback callback,
+                    Bundle extras) {
+                if (cancellationSignal.isCanceled()) {
+                    callback.onLayoutCancelled();
+                    return;
+                }
+
+                PrintDocumentInfo info = new PrintDocumentInfo.Builder(jobName)
+                        .setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
+                        .setPageCount(PrintDocumentInfo.PAGE_COUNT_UNKNOWN)
+                        .build();
+
+                callback.onLayoutFinished(info, !newAttributes.equals(oldAttributes));
+            }
+
+            @Override
+            public void onWrite(PageRange[] pages, ParcelFileDescriptor destination,
+                    CancellationSignal cancellationSignal, WriteResultCallback callback) {
+                InputStream input = null;
+                OutputStream output = null;
+                try {
+                    input = new FileInputStream(filePath);
+                    output = new FileOutputStream(destination.getFileDescriptor());
+
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    while ((bytesRead = input.read(buffer)) != -1) {
+                        if (cancellationSignal.isCanceled()) {
+                            callback.onWriteCancelled();
+                            return;
+                        }
+                        output.write(buffer, 0, bytesRead);
+                    }
+
+                    callback.onWriteFinished(new PageRange[] { PageRange.ALL_PAGES });
+                } catch (Exception e) {
+                    Log.e("Fyne", "Error printing file: " + filePath, e);
+                    callback.onWriteFailed(e.getMessage());
+                } finally {
+                    try {
+                        if (input != null) input.close();
+                        if (output != null) output.close();
+                    } catch (Exception e) {
+                        Log.e("Fyne", "Error closing streams", e);
+                    }
+                }
+            }
+        };
+
+        printManager.print(jobName, adapter, null);
+    }
+
+
 }
