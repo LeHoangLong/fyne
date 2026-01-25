@@ -554,8 +554,14 @@ func runeToPrintable(r rune) rune {
 	return 0
 }
 
+var loopAlready = false
+
 func (d *driver) loopKeyboard() {
-	log.Println("SIGGRAPH loop")
+	if loopAlready {
+		return
+	}
+
+	loopAlready = true
 
 	type Entry interface {
 		SetTextWithHistoryAndCursor(text string, offset int)
@@ -566,11 +572,15 @@ func (d *driver) loopKeyboard() {
 			return
 		}
 
+		for d.app == nil {
+			time.Sleep(100 * time.Millisecond)
+		}
+
 		// Try to get the experimental keyboard V2 event channel
 		eventChan, err := d.app.GetExperimentalKeyboardV2Event()
 		if err != nil {
 			// Fall back to polling mode if not supported
-			log.Println("KeyboardV2Event not available, falling back to polling:", err)
+			log.Println("SIGGRAPH KeyboardV2Event not available, falling back to polling:", err)
 			d.loopKeyboardPolling()
 			return
 		}
