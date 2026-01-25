@@ -626,14 +626,19 @@ func (d *driver) loopKeyboard() {
 
 				// Update the entry if text changed
 				if entryTextStr != text {
-					tempEntry.SetTextWithHistoryAndCursor(text, offsetStart)
-					previousKeyboardValue = text
+					if previousKeyboardValue == text {
+						// When user click on another entry during edit
+						app.SetCurrentKeyboardValue(entryTextStr)
+					} else {
+						tempEntry.SetTextWithHistoryAndCursor(text, offsetStart)
+					}
 				} else {
 					currentEntryOffsetStart, currentEntryOffsetEnd := tempEntry.GetCursorOffset()
 					if currentEntryOffsetStart != offsetStart || currentEntryOffsetEnd != offsetEnd {
 						app.SetCurrentCursorOffset(currentEntryOffsetStart, currentEntryOffsetEnd)
 					}
 				}
+				previousKeyboardValue = text
 
 			case <-syncTicker.C:
 				// Periodic sync operations (focus changes, cursor sync, etc.)
@@ -668,11 +673,13 @@ func (d *driver) loopKeyboard() {
 
 					// Sync cursor position changes from entry to keyboard
 					text := app.GetCurrentKeyboardValue()
-					defer func() { previousKeyboardValue = text }()
 					offsetStart, offsetEnd := app.GetCurrentCursorOffset()
 					if entryTextStr != text {
 						if previousKeyboardValue == text {
+							// When user click on another entry during edit
 							app.SetCurrentKeyboardValue(entryTextStr)
+						} else {
+							tempEntry.SetTextWithHistoryAndCursor(text, offsetStart)
 						}
 					} else {
 						currentEntryOffsetStart, currentEntryOffsetEnd := tempEntry.GetCursorOffset()
@@ -680,6 +687,7 @@ func (d *driver) loopKeyboard() {
 							app.SetCurrentCursorOffset(currentEntryOffsetStart, currentEntryOffsetEnd)
 						}
 					}
+					previousKeyboardValue = text
 				}
 			}
 		}
