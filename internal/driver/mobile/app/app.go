@@ -172,9 +172,9 @@ func (a *app) ShowFileSavePicker(callback func(string, func()), filter *FileFilt
 
 func (a *app) RecordAudio() (io.ReadCloser, error) {
 	a.audioMtx.Lock()
-	defer a.audioMtx.Unlock()
 
 	if a.audioWriter != nil {
+		a.audioMtx.Unlock()
 		return nil, fmt.Errorf("device busy")
 	}
 
@@ -183,15 +183,15 @@ func (a *app) RecordAudio() (io.ReadCloser, error) {
 		reader: reader,
 		onClose: func() {
 			a.audioMtx.Lock()
-			defer a.audioMtx.Unlock()
-
 			a.audioWriter = nil
+			a.audioMtx.Unlock()
 			driverStopMicrophone()
 		},
 	}
 
 	bufWriter := bufio.NewWriter(writer)
 	a.audioWriter = bufWriter
+	a.audioMtx.Unlock()
 	driverStartMicrophone()
 
 	return &ret, nil
@@ -204,8 +204,12 @@ type audioStream struct {
 
 // Close implements [io.ReadCloser].
 func (a *audioStream) Close() error {
+	err := a.reader.Close()
+	if err != nil {
+		return err
+	}
 	a.onClose()
-	return a.reader.Close()
+	return nil
 }
 
 // Read implements [io.ReadCloser].
@@ -216,15 +220,10 @@ func (a *audioStream) Read(p []byte) (n int, err error) {
 var _ io.ReadCloser = (*audioStream)(nil)
 
 func (a *app) writeAudio(data []int16) {
-	if a.audioWriter == nil {
-		return
-	}
-
 	a.audioMtx.Lock()
-	defer a.audioMtx.Unlock()
 
 	if a.audioWriter == nil {
-		driverStopMicrophone()
+		a.audioMtx.Unlock()
 		return
 	}
 
@@ -232,16 +231,23 @@ func (a *app) writeAudio(data []int16) {
 	err := binary.Write(buf, binary.LittleEndian, data)
 	if err != nil {
 		a.audioWriter = nil
-		driverStopMicrophone()
+		a.audioMtx.Unlock()
+		go driverStopMicrophone()
 		return
 	}
 
 	_, err = a.audioWriter.Write(buf.Bytes())
 	if err != nil {
-		a.audioWriter = nil
-		driverStopMicrophone()
+		if err == io.ErrClosedPipe {
+			a.audioWriter = nil
+			a.audioMtx.Unlock()
+			go driverStopMicrophone()
+		} else {
+			a.audioMtx.Unlock()
+		}
 		return
 	}
+	a.audioMtx.Unlock()
 }
 
 func (a *app) GetExperimentalKeyboardV2Event() (<-chan KeyboardV2Event, error) {
