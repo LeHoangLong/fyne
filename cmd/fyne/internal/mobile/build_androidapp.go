@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"fyne.io/fyne/v2/cmd/fyne/internal/mobile/binres"
 	"fyne.io/fyne/v2/cmd/fyne/internal/templates"
@@ -72,6 +73,21 @@ func goAndroidBuild(pkg *packages.Package, bundleID string, androidArchs []strin
 			fmt.Fprintf(os.Stderr, "generated AndroidManifest.xml:\n%s\n", manifestData)
 		}
 	} else {
+		buf := new(bytes.Buffer)
+		err := template.Must(template.New("AndroidManifest").Parse(string(manifestData))).Execute(buf, manifestTmplData{
+			JavaPkgPath: bundleID,
+			Name:        strings.Title(appName), //lint:ignore SA1019 This is fine for our use case.
+			Debug:       !buildRelease,
+			LibName:     libName,
+			Version:     version,
+			Build:       build,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		manifestData = buf.Bytes()
+
 		libName, err = manifestLibName(manifestData)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing %s: %v", manifestPath, err)
