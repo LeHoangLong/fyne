@@ -25,11 +25,21 @@ type Label struct {
 
 	provider *RichText
 	binder   basicBinder
+
+	option *LabelOption
+}
+
+type LabelOption struct {
+	SizeName *fyne.ThemeSizeName
 }
 
 // NewLabel creates a new label widget with the set text content
-func NewLabel(text string) *Label {
-	return NewLabelWithStyle(text, fyne.TextAlignLeading, fyne.TextStyle{})
+func NewLabel(text string, Options ...LabelOption) *Label {
+	ret := NewLabelWithStyle(text, fyne.TextAlignLeading, fyne.TextStyle{})
+	if len(Options) > 0 {
+		ret.option = &Options[0]
+	}
+	return ret
 }
 
 // NewLabelWithData returns an Label widget connected to the specified data source.
@@ -148,6 +158,9 @@ func (l *Label) syncSegments() {
 		ColorName: color,
 		Inline:    true,
 		TextStyle: l.TextStyle,
+	}
+	if l.option != nil && l.option.SizeName != nil {
+		l.provider.Segments[0].(*TextSegment).Style.SizeName = *l.option.SizeName
 	}
 	l.provider.Segments[0].(*TextSegment).Text = l.Text
 }
