@@ -195,6 +195,11 @@ func (d *dummyObject) MinSize() Size {
 	return NewSize(5, 5)
 }
 
+func (d *dummyObject) SetInvisible(Invisible bool) {}
+func (d *dummyObject) IsInvisible() bool {
+	return false
+}
+
 func (d *dummyObject) Move(pos Position) {
 	d.pos = pos
 }

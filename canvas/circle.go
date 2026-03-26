@@ -15,6 +15,7 @@ type Circle struct {
 	Position1 fyne.Position // The current top-left position of the Circle
 	Position2 fyne.Position // The current bottomright position of the Circle
 	Hidden    bool          // Is this circle currently hidden
+	invisible bool
 
 	FillColor   color.Color // The circle fill color
 	StrokeColor color.Color // The circle stroke color
@@ -33,6 +34,14 @@ func (c *Circle) Hide() {
 	c.Hidden = true
 
 	repaint(c)
+}
+
+func (c *Circle) SetInvisible(Invisible bool) {
+	c.invisible = Invisible
+}
+
+func (c *Circle) IsInvisible() bool {
+	return c.invisible
 }
 
 // MinSize for a Circle simply returns Size{1, 1} as there is no

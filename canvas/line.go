@@ -14,6 +14,7 @@ var _ fyne.CanvasObject = (*Line)(nil)
 // Lines are special as they can have a negative width or height to indicate
 // an inverse slope (i.e. slope up vs down).
 type Line struct {
+	invisible bool
 	Position1 fyne.Position // The current top-left position of the Line
 	Position2 fyne.Position // The current bottom-right position of the Line
 	Hidden    bool          // Is this Line currently hidden
@@ -50,6 +51,14 @@ func (l *Line) Resize(size fyne.Size) {
 // Position gets the current top-left position of this line object, relative to its parent / canvas
 func (l *Line) Position() fyne.Position {
 	return fyne.NewPos(fyne.Min(l.Position1.X, l.Position2.X), fyne.Min(l.Position1.Y, l.Position2.Y))
+}
+
+func (l *Line) SetInvisible(Invisible bool) {
+	l.invisible = Invisible
+}
+
+func (l *Line) IsInvisible() bool {
+	return l.invisible
 }
 
 // Move the line object to a new position, relative to its parent / canvas

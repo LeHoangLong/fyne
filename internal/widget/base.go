@@ -11,10 +11,11 @@ import (
 
 // Base provides a helper that handles basic widget behaviours.
 type Base struct {
-	hidden   atomic.Bool
-	position async.Position
-	size     async.Size
-	impl     atomic.Pointer[fyne.Widget]
+	hidden    atomic.Bool
+	position  async.Position
+	size      async.Size
+	impl      atomic.Pointer[fyne.Widget]
+	invisible bool
 }
 
 // ExtendBaseWidget is used by an extending widget to make use of BaseWidget functionality.
@@ -25,6 +26,14 @@ func (w *Base) ExtendBaseWidget(wid fyne.Widget) {
 	}
 
 	w.impl.Store(&wid)
+}
+
+func (w *Base) SetInvisible(Invisible bool) {
+	w.invisible = Invisible
+}
+
+func (w *Base) IsInvisible() bool {
+	return w.invisible
 }
 
 // Size gets the current size of this widget.

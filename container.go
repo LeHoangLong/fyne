@@ -66,6 +66,16 @@ func (c *Container) Add(add CanvasObject) {
 	c.layout()
 }
 
+func (c *Container) SetInvisible(Invisible bool) {
+	for _, object := range c.Objects {
+		object.SetInvisible(Invisible)
+	}
+}
+
+func (*Container) IsInvisible() bool {
+	return false
+}
+
 // AddObject adds another [CanvasObject] to the set this Container holds.
 //
 // Deprecated: Use [Container.Add] instead.

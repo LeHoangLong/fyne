@@ -22,6 +22,8 @@ type BaseWidget struct {
 	impl         atomic.Pointer[fyne.Widget]
 	propertyLock sync.RWMutex
 	themeCache   fyne.Theme
+
+	invisible bool
 }
 
 // ExtendBaseWidget is used by an extending widget to make use of BaseWidget functionality.
@@ -37,6 +39,13 @@ func (w *BaseWidget) ExtendBaseWidget(wid fyne.Widget) {
 // Size gets the current size of this widget.
 func (w *BaseWidget) Size() fyne.Size {
 	return w.size.Load()
+}
+
+func (w *BaseWidget) SetInvisible(Invisible bool) {
+	w.invisible = Invisible
+}
+func (w *BaseWidget) IsInvisible() bool {
+	return w.invisible
 }
 
 // Resize sets a new size for a widget.

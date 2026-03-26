@@ -25,6 +25,9 @@ type CanvasObject interface {
 
 	// visibility
 
+	SetInvisible(bool)
+	IsInvisible() bool
+
 	// Hide hides this object.
 	Hide()
 	// Visible returns whether this object is visible or not.

@@ -444,6 +444,12 @@ func (o *objectTree) Size() fyne.Size {
 	return o.size
 }
 
+func (o *objectTree) SetInvisible(bool) {}
+
+func (o *objectTree) IsInvisible() bool {
+	return false
+}
+
 func (o *objectTree) Resize(size fyne.Size) {
 	o.size = size
 }
@@ -507,6 +513,11 @@ var _ fyne.Scrollable = (*scrollable)(nil)
 
 func (s *scrollable) Hide() {
 	panic("implement me")
+}
+
+func (s *scrollable) SetInvisible(bool) {}
+func (s *scrollable) IsInvisible() bool {
+	return false
 }
 
 func (s *scrollable) MinSize() fyne.Size {

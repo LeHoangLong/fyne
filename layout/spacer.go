@@ -14,15 +14,23 @@ type Spacer struct {
 	FixHorizontal bool
 	FixVertical   bool
 
-	size   fyne.Size
-	pos    fyne.Position
-	hidden bool
+	size      fyne.Size
+	pos       fyne.Position
+	hidden    bool
+	invisible bool
 }
 
 // NewSpacer returns a spacer object which can fill vertical and horizontal
 // space. This is primarily used with a box layout.
 func NewSpacer() fyne.CanvasObject {
 	return &Spacer{}
+}
+
+func (s *Spacer) SetInvisible(Invisible bool) {
+	s.invisible = Invisible
+}
+func (s *Spacer) IsInvisible() bool {
+	return s.invisible
 }
 
 // ExpandVertical returns whether or not this spacer expands on the vertical axis

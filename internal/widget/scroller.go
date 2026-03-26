@@ -5,6 +5,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/internal/cache"
+	"fyne.io/fyne/v2/internal/driver"
 	"fyne.io/fyne/v2/theme"
 )
 
@@ -368,6 +369,33 @@ func (r *scrollContainerRenderer) updatePosition() {
 	contentSize := r.scroll.Content.Size()
 
 	r.scroll.Content.Move(fyne.NewPos(-r.scroll.Offset.X, -r.scroll.Offset.Y))
+	driver.WalkVisibleObjectTree(
+		r.scroll.Content,
+		func(obj fyne.CanvasObject, objPos fyne.Position, _ fyne.Position, _ fyne.Size) bool {
+			if obj == nil || !obj.Visible() {
+				obj.SetInvisible(true)
+				return true
+			}
+
+			// Calculate the object's position in content coordinates
+			objSize := obj.Size()
+
+			// Check if the object is outside the visible area
+			isOutOfVision := objPos.X+objSize.Width <= 0 ||
+				objPos.X >= scrollSize.Width ||
+				objPos.Y+objSize.Height <= 0 ||
+				objPos.Y >= scrollSize.Height
+
+			if isOutOfVision {
+				obj.SetInvisible(true)
+			} else {
+				obj.SetInvisible(false)
+			}
+
+			return false
+		},
+		func(fyne.CanvasObject, fyne.Position, fyne.CanvasObject) {},
+	)
 
 	if r.scroll.Direction == ScrollVerticalOnly || r.scroll.Direction == ScrollBoth {
 		r.handleAreaVisibility(contentSize.Height, scrollSize.Height, r.vertArea)

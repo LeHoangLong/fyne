@@ -15,13 +15,25 @@ import (
 )
 
 type baseObject struct {
-	size     async.Size     // The current size of the canvas object
-	position async.Position // The current position of the object
-	Hidden   bool           // Is this object currently hidden
+	size      async.Size     // The current size of the canvas object
+	position  async.Position // The current position of the object
+	Hidden    bool           // Is this object currently hidden
+	invisible bool
 
 	min async.Size // The minimum size this object can be
 
 	propertyLock sync.RWMutex
+}
+
+func (o *baseObject) SetInvisible(Invisible bool) {
+	o.propertyLock.Lock()
+	defer o.propertyLock.Unlock()
+
+	o.invisible = Invisible
+}
+
+func (o *baseObject) IsInvisible() bool {
+	return o.invisible
 }
 
 // Hide will set this object to not be visible.

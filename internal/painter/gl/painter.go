@@ -89,7 +89,7 @@ func (p *painter) Free(obj fyne.CanvasObject) {
 }
 
 func (p *painter) Paint(obj fyne.CanvasObject, pos fyne.Position, frame fyne.Size) {
-	if obj.Visible() {
+	if obj.Visible() && !obj.IsInvisible() {
 		p.drawObject(obj, pos, frame)
 	}
 }
