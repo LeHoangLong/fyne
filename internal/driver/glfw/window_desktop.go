@@ -249,6 +249,13 @@ func (w *window) fitContent() {
 	w.viewLock.RLock()
 	view := w.viewport
 
+	if minWidth > int(w.canvas.size.Width) {
+		minWidth = int(w.canvas.size.Width)
+	}
+	if minHeight > int(w.canvas.size.Height) {
+		minHeight = int(w.canvas.size.Height)
+	}
+
 	w.viewLock.RUnlock()
 	w.shouldWidth, w.shouldHeight = w.width, w.height
 	if w.width < minWidth || w.height < minHeight {
