@@ -318,12 +318,12 @@ func (c *Canvas) ReallyScrollToFocused(obj fyne.CanvasObject, Options *fyne.Scro
 								verticalScrollAncestor.Offset.Y = currentY + totalDiffY*f
 
 								verticalScrollAncestor.Base.Refresh()
-							}
 
-							if math.Abs(float64(f-1)) < 0.01 {
-								verticalScrollAncestor.DisableScroll = false
-								if Options != nil && Options.OnComplete != nil {
-									Options.OnComplete()
+								if math.Abs(float64(f-1)) < 0.01 {
+									verticalScrollAncestor.DisableScroll = false
+									if Options != nil && Options.OnComplete != nil {
+										Options.OnComplete()
+									}
 								}
 							}
 						})
