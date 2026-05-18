@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"image/color"
 	"log"
 	"math"
@@ -92,6 +93,12 @@ func (c *Canvas) DrawDebugOverlay(obj fyne.CanvasObject, pos fyne.Position, size
 //
 // This function uses lock.
 func (c *Canvas) EnsureMinSize() bool {
+    defer func() {
+        if r := recover(); r != nil {
+            fmt.Println("Recovered from:", r)
+        }
+    }()
+
 	if c.impl.Content() == nil {
 		return false
 	}
@@ -100,7 +107,6 @@ func (c *Canvas) EnsureMinSize() bool {
 	min := c.impl.MinSize()
 
 	c.RLock()
-	defer c.RUnlock()
 
 	var parentNeedingUpdate *RenderCacheNode
 
@@ -149,12 +155,11 @@ func (c *Canvas) EnsureMinSize() bool {
 		}
 	}
 	c.WalkTrees(nil, ensureMinSize)
+	c.RUnlock()
 
 	shouldResize := windowNeedsMinSizeUpdate && (csize.Width < min.Width || csize.Height < min.Height)
 	if shouldResize {
-		c.RUnlock()
 		c.impl.Resize(csize.Max(min))
-		c.RLock()
 	}
 	return windowNeedsMinSizeUpdate
 }
