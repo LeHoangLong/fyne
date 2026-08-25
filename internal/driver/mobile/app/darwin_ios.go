@@ -332,6 +332,16 @@ func driverShowFileSavePicker(callback func(string, func()), filter *FileFilter,
 	C.showFileSavePicker(mimeStr, extStr, C.CString(filename))
 }
 
+func driverStartCamera(callback func(string)) {
+	log.Println("Camera is not implemented on iOS")
+}
+
+func driverStopCamera() {
+}
+
+func driverTakePicture() {
+}
+
 func UseExperimentalKeyboardV2() bool {
 	return true
 }

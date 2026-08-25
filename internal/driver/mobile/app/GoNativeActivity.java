@@ -41,6 +41,8 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 
+import android.view.TextureView;
+
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -59,6 +61,8 @@ public class GoNativeActivity extends NativeActivity {
     private static final int PASSWORD_KEYBOARD_CODE = 3;
 
     private native void filePickerReturned(String str);
+
+    private native void cameraReturned(String str);
 
     private native void insetsChanged(int top, int bottom, int left, int right);
 
@@ -79,6 +83,18 @@ public class GoNativeActivity extends NativeActivity {
     private AudioRecord recorder;
     private Thread recordingThread;
     private boolean isRecording = false;
+
+    private TextureView cameraView;
+    private CameraController cameraController;
+
+    private final CameraController.Callback cameraCallback = new CameraController.Callback() {
+        @Override
+        public void onPhoto(String uri) {
+            cameraReturned(uri);
+        }
+    };
+
+    private static final int CAMERA_PERMISSION_CODE = 1002;
 
     public GoNativeActivity() {
         super();
@@ -265,6 +281,12 @@ public class GoNativeActivity extends NativeActivity {
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         if (requestCode == 1001 && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             doStartMicrophone();
+        } else if (requestCode == CAMERA_PERMISSION_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startCameraSession();
+            } else {
+                cameraReturned("");
+            }
         }
     }
 
@@ -303,6 +325,66 @@ public class GoNativeActivity extends NativeActivity {
         intent.putExtra(Intent.EXTRA_TITLE, filename);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         startActivityForResult(Intent.createChooser(intent, "Save File"), FILE_SAVE_CODE);
+    }
+
+    static void openCamera() {
+        goNativeActivity.doOpenCamera();
+    }
+
+    static void closeCamera() {
+        goNativeActivity.doCloseCamera();
+    }
+
+    static void takePicture() {
+        goNativeActivity.doTakePicture();
+    }
+
+    void doOpenCamera() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[] { Manifest.permission.CAMERA }, CAMERA_PERMISSION_CODE);
+                return;
+            }
+        }
+        startCameraSession();
+    }
+
+    void doCloseCamera() {
+        if (cameraController != null) {
+            cameraController.close();
+            cameraController = null;
+        }
+        if (cameraView != null) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    View content = findViewById(android.R.id.content).getRootView();
+                    if (content instanceof FrameLayout) {
+                        ((FrameLayout) content).removeView(cameraView);
+                    }
+                }
+            });
+            cameraView = null;
+        }
+    }
+
+    void doTakePicture() {
+        if (cameraController != null) {
+            cameraController.takePicture();
+        }
+    }
+
+    private void startCameraSession() {
+        if (cameraView == null) {
+            cameraView = new TextureView(this);
+            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+            addContentView(cameraView, params);
+        }
+        if (cameraController == null) {
+            cameraController = new CameraController(this, cameraView, cameraCallback);
+        }
+        cameraController.open();
     }
 
     static int getRune(int deviceId, int keyCode, int metaState) {
@@ -448,6 +530,15 @@ public class GoNativeActivity extends NativeActivity {
 
         // skip the default behaviour - we can call finishActivity if we want to go back
         backPressed();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (cameraController != null) {
+            cameraController.close();
+            cameraController = null;
+        }
+        super.onDestroy();
     }
 
     public void finishActivity() {

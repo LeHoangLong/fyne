@@ -47,11 +47,15 @@ void showKeyboard(JNIEnv* env, int keyboardType);
 void hideKeyboard(JNIEnv* env);
 void showFileOpen(JNIEnv* env, char* mimes);
 void showFileSave(JNIEnv* env, char* mimes, char* filename);
+void openCamera(JNIEnv* env);
+void closeCamera(JNIEnv* env);
+void takePicture(JNIEnv* env);
 void finish(JNIEnv* env, jobject ctx);
 void startMicrophone(JNIEnv* env);
 void stopMicrophone(JNIEnv* env);
 
 void Java_org_golang_app_GoNativeActivity_filePickerReturned(JNIEnv *env, jclass clazz, jstring str);
+void Java_org_golang_app_GoNativeActivity_cameraReturned(JNIEnv *env, jclass clazz, jstring str);
 */
 import "C"
 import (
@@ -377,6 +381,17 @@ func filePickerReturned(str *C.char) {
 	fileCallback = nil
 }
 
+var cameraCallback func(string)
+
+//export cameraReturned
+func cameraReturned(str *C.char) {
+	if cameraCallback == nil {
+		return
+	}
+
+	cameraCallback(C.GoString(str))
+}
+
 //export insetsChanged
 func insetsChanged(top, bottom, left, right int) {
 	currentSize.InsetTopPx = top
@@ -448,6 +463,43 @@ func driverShowFileSavePicker(callback func(string, func()), filter *FileFilter,
 	}
 
 	if err := mobileinit.RunOnJVM(save); err != nil {
+		log.Fatalf("app: %v", err)
+	}
+}
+
+func driverStartCamera(callback func(string)) {
+	cameraCallback = callback
+
+	err := mobileinit.RunOnJVM(func(vm, jniEnv, ctx uintptr) error {
+		env := (*C.JNIEnv)(unsafe.Pointer(jniEnv)) // not a Go heap pointer
+		C.openCamera(env)
+		return nil
+	})
+	if err != nil {
+		log.Fatalf("app: %v", err)
+	}
+}
+
+func driverStopCamera() {
+	cameraCallback = nil
+
+	err := mobileinit.RunOnJVM(func(vm, jniEnv, ctx uintptr) error {
+		env := (*C.JNIEnv)(unsafe.Pointer(jniEnv)) // not a Go heap pointer
+		C.closeCamera(env)
+		return nil
+	})
+	if err != nil {
+		log.Fatalf("app: %v", err)
+	}
+}
+
+func driverTakePicture() {
+	err := mobileinit.RunOnJVM(func(vm, jniEnv, ctx uintptr) error {
+		env := (*C.JNIEnv)(unsafe.Pointer(jniEnv)) // not a Go heap pointer
+		C.takePicture(env)
+		return nil
+	})
+	if err != nil {
 		log.Fatalf("app: %v", err)
 	}
 }

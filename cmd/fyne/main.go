@@ -11,6 +11,7 @@ import (
 )
 
 func main() {
+	fmt.Println("main 4")
 	app := &cli.App{
 		Name:        "fyne",
 		Usage:       "A command line helper for various Fyne tools.",
