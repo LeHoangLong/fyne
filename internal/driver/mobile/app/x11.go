@@ -463,6 +463,16 @@ func driverShowFileOpenPicker(func(string, func()), *FileFilter) {
 func driverShowFileSavePicker(func(string, func()), *FileFilter, string) {
 }
 
+// driverStartCamera does nothing on desktop
+func driverStartCamera(func(string)) {
+}
+
+func driverStopCamera() {
+}
+
+func driverTakePicture() {
+}
+
 func driverStartMicrophone() {
 }
 

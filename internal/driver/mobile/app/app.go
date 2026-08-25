@@ -67,6 +67,9 @@ type App interface {
 	HideVirtualKeyboard()
 	ShowFileOpenPicker(func(string, func()), *FileFilter)
 	ShowFileSavePicker(func(string, func()), *FileFilter, string)
+	StartCamera(func(string))
+	StopCamera()
+	TakePicture()
 
 	RecordAudio() (io.ReadCloser, error)
 	GetExperimentalKeyboardV2Event() (<-chan KeyboardV2Event, error)
@@ -168,6 +171,18 @@ func (a *app) ShowFileOpenPicker(callback func(string, func()), filter *FileFilt
 }
 func (a *app) ShowFileSavePicker(callback func(string, func()), filter *FileFilter, filename string) {
 	driverShowFileSavePicker(callback, filter, filename)
+}
+
+func (a *app) StartCamera(callback func(string)) {
+	driverStartCamera(callback)
+}
+
+func (a *app) StopCamera() {
+	driverStopCamera()
+}
+
+func (a *app) TakePicture() {
+	driverTakePicture()
 }
 
 func (a *app) RecordAudio() (io.ReadCloser, error) {

@@ -53,6 +53,9 @@ static jmethodID show_keyboard_method;
 static jmethodID hide_keyboard_method;
 static jmethodID show_file_open_method;
 static jmethodID show_file_save_method;
+static jmethodID open_camera_method;
+static jmethodID close_camera_method;
+static jmethodID take_picture_method;
 static jmethodID finish_method;
 static jmethodID start_microphone_method;
 static jmethodID stop_microphone_method;
@@ -98,6 +101,9 @@ void ANativeActivity_onCreate(ANativeActivity *activity, void* savedState, size_
 		hide_keyboard_method = find_static_method(env, current_class, "hideKeyboard", "()V");
 		show_file_open_method = find_static_method(env, current_class, "showFileOpen", "(Ljava/lang/String;)V");
 		show_file_save_method = find_static_method(env, current_class, "showFileSave", "(Ljava/lang/String;Ljava/lang/String;)V");
+		open_camera_method = find_static_method(env, current_class, "openCamera", "()V");
+		close_camera_method = find_static_method(env, current_class, "closeCamera", "()V");
+		take_picture_method = find_static_method(env, current_class, "takePicture", "()V");
 		start_microphone_method = find_static_method(env, current_class, "startMicrophone", "()V");
 		stop_microphone_method = find_static_method(env, current_class, "stopMicrophone", "()V");
 		finish_method = find_method(env, current_class, "finishActivity", "()V");
@@ -300,9 +306,38 @@ void showFileSave(JNIEnv* env, char* mimes, char* filename) {
 	);
 }
 
+void openCamera(JNIEnv* env) {
+	(*env)->CallStaticVoidMethod(
+		env,
+		current_class,
+		open_camera_method
+	);
+}
+
+void closeCamera(JNIEnv* env) {
+	(*env)->CallStaticVoidMethod(
+		env,
+		current_class,
+		close_camera_method
+	);
+}
+
+void takePicture(JNIEnv* env) {
+	(*env)->CallStaticVoidMethod(
+		env,
+		current_class,
+		take_picture_method
+	);
+}
+
 void Java_org_golang_app_GoNativeActivity_filePickerReturned(JNIEnv *env, jclass clazz, jstring str) {
     const char* cstr = (*env)->GetStringUTFChars(env, str, JNI_FALSE);
 	filePickerReturned((char*)cstr);
+}
+
+void Java_org_golang_app_GoNativeActivity_cameraReturned(JNIEnv *env, jclass clazz, jstring str) {
+    const char* cstr = (*env)->GetStringUTFChars(env, str, JNI_FALSE);
+	cameraReturned((char*)cstr);
 }
 
 void Java_org_golang_app_GoNativeActivity_insetsChanged(JNIEnv *env, jclass clazz, int top, int bottom, int left, int right) {
