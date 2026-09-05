@@ -255,6 +255,10 @@ func (c *canvas) SetScale(scale float32) {
 	c.scale = scale
 }
 
+func (c *canvas) ScrollToFocused(_ fyne.CanvasObject, _ *fyne.ScrollToFocusedOptions) {
+	// no-op: the test canvas has no scrollable viewport to bring focus into view.
+}
+
 func (c *canvas) Size() fyne.Size {
 	c.propertyLock.RLock()
 	defer c.propertyLock.RUnlock()
