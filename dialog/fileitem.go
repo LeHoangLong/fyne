@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -26,6 +27,7 @@ type fileDialogItem struct {
 	open     func()
 	location fyne.URI
 	dir      bool
+	selected bool
 
 	lastClick time.Time
 }
@@ -35,12 +37,16 @@ func (i *fileDialogItem) CreateRenderer() fyne.WidgetRenderer {
 	text.Truncation = fyne.TextTruncateEllipsis
 	text.Wrapping = fyne.TextWrapBreak
 	icon := widget.NewFileIcon(i.location)
+	background := canvas.NewRectangle(theme.Color(theme.ColorNameSelection))
+	background.CornerRadius = theme.SelectionRadiusSize()
+	background.Hide()
 
 	return &fileItemRenderer{
 		item:         i,
 		icon:         icon,
 		text:         text,
-		objects:      []fyne.CanvasObject{icon, text},
+		background:   background,
+		objects:      []fyne.CanvasObject{background, icon, text},
 		fileTextSize: widget.NewLabel("M\nM").MinSize().Height, // cache two-line label height,
 	}
 }
@@ -99,12 +105,15 @@ type fileItemRenderer struct {
 	item         *fileDialogItem
 	fileTextSize float32
 
-	icon    *widget.FileIcon
-	text    *widget.Label
-	objects []fyne.CanvasObject
+	icon       *widget.FileIcon
+	text       *widget.Label
+	background *canvas.Rectangle
+	objects    []fyne.CanvasObject
 }
 
 func (s *fileItemRenderer) Layout(size fyne.Size) {
+	s.background.Resize(size)
+
 	if s.item.picker.view == GridView {
 		s.icon.Resize(fyne.NewSize(fileIconSize, fileIconSize))
 		s.icon.Move(fyne.NewPos((size.Width-fileIconSize)/2, 0))
@@ -137,6 +146,13 @@ func (s *fileItemRenderer) Refresh() {
 
 	s.text.SetText(s.item.name)
 	s.icon.SetURI(s.item.location)
+
+	if s.item.selected {
+		s.background.Show()
+	} else {
+		s.background.Hide()
+	}
+	s.background.Refresh()
 }
 
 func (s *fileItemRenderer) Objects() []fyne.CanvasObject {

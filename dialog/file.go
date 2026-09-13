@@ -47,7 +47,7 @@ type favoriteItem struct {
 type fileDialogPanel interface {
 	fyne.Widget
 
-	Unselect(int)
+	UnselectAll()
 }
 
 type fileDialog struct {
@@ -68,14 +68,20 @@ type fileDialog struct {
 	data     []fyne.URI
 	dataLock sync.RWMutex
 
-	win        *widget.PopUp
-	selected   fyne.URI
-	selectedID int
-	dir        fyne.ListableURI
+	win         *widget.PopUp
+	selected    []fyne.URI
+	selectedIDs map[int]bool
+	dir         fyne.ListableURI
 	// this will be the initial filename in a FileDialog in save mode
 	initialFileName string
 
 	toggleViewButton *widget.Button
+}
+
+// FileDialogOpts holds optional configuration for a FileDialog.
+type FileDialogOpts struct {
+	// MultiSelect enables choosing more than one file in a file open dialog.
+	MultiSelect bool
 }
 
 // FileDialog is a dialog containing a file picker for use in opening or saving files.
@@ -95,6 +101,8 @@ type FileDialog struct {
 	initialFileName string
 	// this will be the initial view in a FileDialog
 	initialView ViewLayout
+
+	opts *FileDialogOpts
 }
 
 // Declare conformity to Dialog interface
@@ -297,13 +305,29 @@ func (f *fileDialog) makeOpenButton(label string) *widget.Button {
 						f.file.onClosedCallback(true)
 					}
 				}, f.file.parent)
-		} else if f.selected != nil {
-			callback := f.file.callback.(func(fyne.URIReadCloser, error))
-			f.win.Hide()
-			if f.file.onClosedCallback != nil {
-				f.file.onClosedCallback(true)
+		} else if len(f.selected) > 0 {
+			if multi, ok := f.file.callback.(func([]fyne.URIReadCloser, error)); ok {
+				readers := make([]fyne.URIReadCloser, 0, len(f.selected))
+				for _, uri := range f.selected {
+					reader, err := storage.Reader(uri)
+					if err != nil {
+						fyne.LogError("Unable to open file "+uri.String(), err)
+					}
+					readers = append(readers, reader)
+				}
+				f.win.Hide()
+				if f.file.onClosedCallback != nil {
+					f.file.onClosedCallback(true)
+				}
+				multi(readers, nil)
+			} else {
+				callback := f.file.callback.(func(fyne.URIReadCloser, error))
+				f.win.Hide()
+				if f.file.onClosedCallback != nil {
+					f.file.onClosedCallback(true)
+				}
+				callback(storage.Reader(f.selected[0]))
 			}
-			callback(storage.Reader(f.selected))
 		} else if f.file.isDirectory() {
 			callback := f.file.callback.(func(fyne.ListableURI, error))
 			f.win.Hide()
@@ -331,6 +355,8 @@ func (f *fileDialog) makeDismissButton(label string) *widget.Button {
 				f.file.callback.(func(fyne.URIWriteCloser, error))(nil, nil)
 			} else if f.file.isDirectory() {
 				f.file.callback.(func(fyne.ListableURI, error))(nil, nil)
+			} else if multi, ok := f.file.callback.(func([]fyne.URIReadCloser, error)); ok {
+				multi(nil, nil)
 			} else {
 				f.file.callback.(func(fyne.URIReadCloser, error))(nil, nil)
 			}
@@ -440,9 +466,7 @@ func (f *fileDialog) refreshDir(dir fyne.ListableURI) {
 }
 
 func (f *fileDialog) setLocation(dir fyne.URI) error {
-	if f.selectedID > -1 {
-		f.files.Unselect(f.selectedID)
-	}
+	f.files.UnselectAll()
 	if dir == nil {
 		return errors.New("failed to open nil directory")
 	}
@@ -527,8 +551,21 @@ func (f *fileDialog) setSelected(file fyne.URI, id int) {
 			return
 		}
 	}
-	f.selected = file
-	f.selectedID = id
+
+	if f.isMultiSelect() {
+		if file == nil {
+			f.clearSelected()
+		} else {
+			f.toggleSelected(file, id)
+		}
+		return
+	}
+
+	f.selected = nil
+	f.selectedIDs = nil
+	if file != nil {
+		f.selected = []fyne.URI{file}
+	}
 
 	if file == nil || file.String()[len(file.Scheme())+3:] == "" {
 		// keep user input while navigating
@@ -543,13 +580,58 @@ func (f *fileDialog) setSelected(file fyne.URI, id int) {
 	}
 }
 
+// isMultiSelect returns true when this dialog allows more than one file to be
+// selected, i.e. when it is an open dialog using the MultiSelect option.
+func (f *fileDialog) isMultiSelect() bool {
+	return f.file != nil && f.file.opts != nil && f.file.opts.MultiSelect &&
+		!f.file.save && !f.file.isDirectory()
+}
+
+func (f *fileDialog) toggleSelected(file fyne.URI, id int) {
+	if f.selectedIDs == nil {
+		f.selectedIDs = make(map[int]bool)
+	}
+	if f.selectedIDs[id] {
+		delete(f.selectedIDs, id)
+		for i, sel := range f.selected {
+			if sel.String() == file.String() {
+				f.selected = append(f.selected[:i], f.selected[i+1:]...)
+				break
+			}
+		}
+	} else {
+		f.selectedIDs[id] = true
+		f.selected = append(f.selected, file)
+	}
+
+	if len(f.selected) == 0 {
+		f.fileName.SetText("")
+		f.open.Disable()
+	} else {
+		f.fileName.SetText(fmt.Sprintf("%d %s", len(f.selected), lang.L("selected")))
+		f.open.Enable()
+	}
+	if f.files != nil {
+		f.files.Refresh()
+	}
+}
+
+func (f *fileDialog) clearSelected() {
+	f.selected = nil
+	f.selectedIDs = nil
+	f.fileName.SetText("")
+	f.open.Disable()
+	if f.files != nil {
+		f.files.Refresh()
+	}
+}
+
 func (f *fileDialog) setView(view ViewLayout) {
 	f.view = view
 	fyne.CurrentApp().Preferences().SetInt(viewLayoutKey, int(view))
 	var selectF func(id int)
 	choose := func(id int) {
 		if file, ok := f.getDataItem(id); ok {
-			f.selectedID = id
 			f.setSelected(file, id)
 		}
 	}
@@ -566,10 +648,12 @@ func (f *fileDialog) setView(view ViewLayout) {
 		if dir, ok := f.getDataItem(id); ok {
 			parent := id == 0 && len(dir.Path()) < len(f.dir.Path())
 			_, isDir := dir.(fyne.ListableURI)
-			o.(*fileDialogItem).setLocation(dir, isDir || parent, parent)
-			o.(*fileDialogItem).choose = selectF
-			o.(*fileDialogItem).id = id
-			o.(*fileDialogItem).open = f.open.OnTapped
+			item := o.(*fileDialogItem)
+			item.selected = f.isMultiSelect() && f.selectedIDs[id]
+			item.setLocation(dir, isDir || parent, parent)
+			item.choose = selectF
+			item.id = id
+			item.open = f.open.OnTapped
 		}
 	}
 	// Actually, during the real interaction, the OnSelected won't be called.
@@ -579,13 +663,21 @@ func (f *fileDialog) setView(view ViewLayout) {
 		grid.OnSelected = choose
 		f.files = grid
 		f.toggleViewButton.SetIcon(theme.ListIcon())
-		selectF = grid.Select
+		if f.isMultiSelect() {
+			selectF = choose // chosen files are toggled, bypassing single selection
+		} else {
+			selectF = grid.Select
+		}
 	} else {
 		list := widget.NewList(count, template, update)
 		list.OnSelected = choose
 		f.files = list
 		f.toggleViewButton.SetIcon(theme.GridIcon())
-		selectF = list.Select
+		if f.isMultiSelect() {
+			selectF = choose // chosen files are toggled, bypassing single selection
+		} else {
+			selectF = list.Select
+		}
 	}
 
 	if f.dir != nil {
@@ -825,6 +917,50 @@ func (f *FileDialog) SetView(v ViewLayout) {
 	}
 }
 
+// multiSelect returns true when the MultiSelect option is enabled for this dialog.
+func (f *FileDialog) multiSelect() bool {
+	return f.opts != nil && f.opts.MultiSelect
+}
+
+// SetOpts sets the options for this file dialog.
+// This is normally called before the dialog is shown.
+//
+// Since: 2.6
+func (f *FileDialog) SetOpts(opts FileDialogOpts) {
+	if opts.MultiSelect && f.save {
+		fyne.LogError("MultiSelect is not supported by a file save dialog", nil)
+		opts.MultiSelect = false
+	}
+	if opts.MultiSelect && f.isDirectory() {
+		fyne.LogError("MultiSelect is not supported by a folder dialog", nil)
+		opts.MultiSelect = false
+	}
+	f.opts = &opts
+	if f.dialog != nil {
+		f.dialog.setSelected(nil, -1)
+	}
+}
+
+// NewFileOpenMultiSelect creates a file dialog allowing the user to choose one
+// or more files to open. The returned dialog has the MultiSelect option set.
+//
+// The callback function will run when the dialog closes and provide readers
+// for the chosen files.
+// The readers will be nil when the user cancels or when nothing is selected.
+// When the readers aren't nil they must be closed by the callback.
+//
+// The dialog will appear over the window specified when Show() is called.
+//
+// Since: 2.6
+func NewFileOpenMultiSelect(callback func(readers []fyne.URIReadCloser, err error), parent fyne.Window) *FileDialog {
+	dialog := &FileDialog{
+		callback: callback,
+		parent:   parent,
+		opts:     &FileDialogOpts{MultiSelect: true},
+	}
+	return dialog
+}
+
 // NewFileOpen creates a file dialog allowing the user to choose a file to open.
 //
 // The callback function will run when the dialog closes and provide a reader for the chosen file.
@@ -861,6 +997,25 @@ func NewFileSave(callback func(writer fyne.URIWriteCloser, err error), parent fy
 // The dialog will appear over the window specified.
 func ShowFileOpen(callback func(reader fyne.URIReadCloser, err error), parent fyne.Window) {
 	dialog := NewFileOpen(callback, parent)
+	if fileOpenOSOverride(dialog) {
+		return
+	}
+	dialog.Show()
+}
+
+// ShowFileOpenMultiSelect creates and shows a file dialog allowing the user to
+// choose one or more files to open. The dialog has the MultiSelect option set.
+//
+// The callback function will run when the dialog closes and provide readers
+// for the chosen files.
+// The readers will be nil when the user cancels or when nothing is selected.
+// When the readers aren't nil they must be closed by the callback.
+//
+// The dialog will appear over the window specified.
+//
+// Since: 2.6
+func ShowFileOpenMultiSelect(callback func(readers []fyne.URIReadCloser, err error), parent fyne.Window) {
+	dialog := NewFileOpenMultiSelect(callback, parent)
 	if fileOpenOSOverride(dialog) {
 		return
 	}

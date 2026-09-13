@@ -29,6 +29,9 @@ func hideFile(filename string) error {
 func fileOpenOSOverride(f *FileDialog) bool {
 	if f.isDirectory() {
 		mobile.ShowFolderOpenPicker(f.callback.(func(fyne.ListableURI, error)))
+	} else if multi, ok := f.callback.(func([]fyne.URIReadCloser, error)); ok {
+		fyne.LogError("MultiSelect is not supported by the native file picker", nil)
+		multi(nil, nil)
 	} else {
 		mobile.ShowFileOpenPicker(f.callback.(func(fyne.URIReadCloser, error)), f.filter)
 	}

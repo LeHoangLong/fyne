@@ -826,3 +826,87 @@ func TestSetOnClosedBeforeShow(t *testing.T) {
 	d.Hide()
 	assert.True(t, onClosedCalled)
 }
+
+func TestFileDialogSetOpts(t *testing.T) {
+	win := test.NewTempWindow(t, widget.NewLabel("Content"))
+
+	open := NewFileOpen(func(fyne.URIReadCloser, error) {}, win)
+	assert.False(t, open.multiSelect())
+	open.SetOpts(FileDialogOpts{MultiSelect: true})
+	assert.True(t, open.multiSelect())
+
+	save := NewFileSave(func(fyne.URIWriteCloser, error) {}, win)
+	save.SetOpts(FileDialogOpts{MultiSelect: true})
+	assert.False(t, save.multiSelect()) // not supported in save dialogs
+
+	folder := NewFolderOpen(func(fyne.ListableURI, error) {}, win)
+	folder.SetOpts(FileDialogOpts{MultiSelect: true})
+	assert.False(t, folder.multiSelect()) // not supported in folder dialogs
+}
+
+func TestFileDialogMultiSelect(t *testing.T) {
+	win := test.NewTempWindow(t, widget.NewLabel("Content"))
+
+	var chosen []fyne.URIReadCloser
+	dlg := NewFileOpenMultiSelect(func(readers []fyne.URIReadCloser, err error) {
+		assert.Nil(t, err)
+		chosen = readers
+	}, win)
+	assert.True(t, dlg.multiSelect())
+
+	dir := t.TempDir()
+	fileA := filepath.Join(dir, "a.txt")
+	fileB := filepath.Join(dir, "b.txt")
+	assert.Nil(t, os.WriteFile(fileA, []byte("a"), 0644))
+	assert.Nil(t, os.WriteFile(fileB, []byte("b"), 0644))
+
+	list, err := storage.ListerForURI(storage.NewFileURI(dir))
+	assert.Nil(t, err)
+	dlg.SetLocation(list)
+	dlg.Show()
+
+	popup := win.Canvas().Overlays().Top().(*widget.PopUp)
+	defer win.Canvas().Overlays().Remove(popup)
+	assert.NotNil(t, popup)
+
+	d := dlg.dialog
+	assert.True(t, d.isMultiSelect())
+	assert.True(t, d.open.Disabled()) // nothing selected yet
+
+	findID := func(name string) int {
+		for id, u := range d.data {
+			if u.Name() == name {
+				return id
+			}
+		}
+		return -1
+	}
+	uriA, uriB := storage.NewFileURI(fileA), storage.NewFileURI(fileB)
+	idA, idB := findID("a.txt"), findID("b.txt")
+	assert.NotEqual(t, -1, idA, "a.txt not found")
+	assert.NotEqual(t, -1, idB, "b.txt not found")
+
+	// choose both files
+	d.setSelected(uriA, idA)
+	d.setSelected(uriB, idB)
+	assert.False(t, d.open.Disabled())
+	assert.Len(t, d.selected, 2)
+
+	// choosing a chosen file toggles it off again
+	d.setSelected(uriA, idA)
+	assert.Len(t, d.selected, 1)
+	assert.Equal(t, uriB.String(), d.selected[0].String())
+
+	test.Tap(d.open)
+	assert.Len(t, chosen, 1)
+	if len(chosen) == 1 {
+		assert.Equal(t, "b.txt", chosen[0].URI().Name())
+		chosen[0].Close()
+	}
+
+	// cancelling returns no files at all
+	chosen = nil
+	d.setSelected(uriB, idB)
+	test.Tap(d.dismiss)
+	assert.Nil(t, chosen)
+}
