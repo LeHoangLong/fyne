@@ -307,14 +307,22 @@ void showFileSave(JNIEnv* env, char* mimes, char* filename) {
 }
 
 void openCamera(JNIEnv* env) {
+	LOG_INFO("openCamera: entry, method=%p", (void*)open_camera_method);
 	(*env)->CallStaticVoidMethod(
 		env,
 		current_class,
 		open_camera_method
 	);
+	if ((*env)->ExceptionCheck(env)) {
+		LOG_INFO("openCamera: Java exception after call");
+		(*env)->ExceptionDescribe(env);
+		(*env)->ExceptionClear(env);
+	}
+	LOG_INFO("openCamera: done");
 }
 
 void closeCamera(JNIEnv* env) {
+	LOG_INFO("closeCamera: entry, method=%p", (void*)close_camera_method);
 	(*env)->CallStaticVoidMethod(
 		env,
 		current_class,
@@ -323,6 +331,7 @@ void closeCamera(JNIEnv* env) {
 }
 
 void takePicture(JNIEnv* env) {
+	LOG_INFO("takePicture: entry, method=%p", (void*)take_picture_method);
 	(*env)->CallStaticVoidMethod(
 		env,
 		current_class,

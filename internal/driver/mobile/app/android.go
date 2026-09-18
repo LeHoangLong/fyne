@@ -385,6 +385,7 @@ var cameraCallback func(string)
 
 //export cameraReturned
 func cameraReturned(str *C.char) {
+	log.Printf("app: cameraReturned uri=%q callbackRegistered=%v", C.GoString(str), cameraCallback != nil)
 	if cameraCallback == nil {
 		return
 	}
@@ -470,6 +471,7 @@ func driverShowFileSavePicker(callback func(string, func()), filter *FileFilter,
 func driverStartCamera(callback func(string)) {
 	cameraCallback = callback
 
+	log.Println("app: driverStartCamera called")
 	err := mobileinit.RunOnJVM(func(vm, jniEnv, ctx uintptr) error {
 		env := (*C.JNIEnv)(unsafe.Pointer(jniEnv)) // not a Go heap pointer
 		C.openCamera(env)
@@ -478,11 +480,13 @@ func driverStartCamera(callback func(string)) {
 	if err != nil {
 		log.Fatalf("app: %v", err)
 	}
+	log.Println("app: driverStartCamera returned")
 }
 
 func driverStopCamera() {
 	cameraCallback = nil
 
+	log.Println("app: driverStopCamera called")
 	err := mobileinit.RunOnJVM(func(vm, jniEnv, ctx uintptr) error {
 		env := (*C.JNIEnv)(unsafe.Pointer(jniEnv)) // not a Go heap pointer
 		C.closeCamera(env)
@@ -494,6 +498,7 @@ func driverStopCamera() {
 }
 
 func driverTakePicture() {
+	log.Println("app: driverTakePicture called")
 	err := mobileinit.RunOnJVM(func(vm, jniEnv, ctx uintptr) error {
 		env := (*C.JNIEnv)(unsafe.Pointer(jniEnv)) // not a Go heap pointer
 		C.takePicture(env)

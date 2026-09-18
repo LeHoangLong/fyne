@@ -61,6 +61,7 @@ public class CameraController {
     private final TextureView.SurfaceTextureListener surfaceListener = new TextureView.SurfaceTextureListener() {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+            Log.i("Fyne", "surface available " + width + "x" + height + ", opening camera");
             openCamera();
         }
 
@@ -86,6 +87,7 @@ public class CameraController {
 
     /** Opens the camera session; the preview appears once the TextureView surface is ready. */
     public void open() {
+        Log.i("Fyne", "controller open: texture available=" + textureView.isAvailable());
         startBackgroundThread();
         if (textureView.isAvailable()) {
             openCamera();
@@ -159,6 +161,7 @@ public class CameraController {
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
             previewSize = chooseSize(map.getOutputSizes(SurfaceTexture.class));
+            Log.i("Fyne", "openCamera: id=" + cameraId + " previewSize=" + previewSize);
 
             imageReader = ImageReader.newInstance(previewSize.getWidth(), previewSize.getHeight(),
                     ImageFormat.JPEG, 2);
@@ -178,18 +181,21 @@ public class CameraController {
     private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(CameraDevice device) {
+            Log.i("Fyne", "camera opened: " + device.getId());
             cameraDevice = device;
             createPreviewSession();
         }
 
         @Override
         public void onDisconnected(CameraDevice device) {
+            Log.e("Fyne", "camera disconnected: " + device.getId());
             device.close();
             cameraDevice = null;
         }
 
         @Override
         public void onError(CameraDevice device, int error) {
+            Log.e("Fyne", "camera error " + error + " on " + device.getId());
             device.close();
             cameraDevice = null;
             callback.onPhoto("");
@@ -208,8 +214,10 @@ public class CameraController {
                 @Override
                 public void onConfigured(CameraCaptureSession session) {
                     captureSession = session;
+                    Log.i("Fyne", "preview session configured");
                     try {
                         session.setRepeatingRequest(builder.build(), null, backgroundHandler);
+                        Log.i("Fyne", "repeating preview request active");
                     } catch (Exception e) {
                         Log.e("Fyne", "setRepeatingRequest failed", e);
                     }
@@ -288,14 +296,20 @@ public class CameraController {
     }
 
     private String selectCamera(CameraManager manager) throws Exception {
+        String first = null;
         for (String id : manager.getCameraIdList()) {
             CameraCharacteristics c = manager.getCameraCharacteristics(id);
             Integer facing = c.get(CameraCharacteristics.LENS_FACING);
+            Log.i("Fyne", "selectCamera: id=" + id + " facing=" + facing);
+            if (first == null) {
+                first = id;
+            }
             if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
                 return id;
             }
         }
-        return manager.getCameraIdList()[0];
+        Log.i("Fyne", "selectCamera: no back camera, using id=" + first);
+        return first;
     }
 
     private Size chooseSize(Size[] sizes) {

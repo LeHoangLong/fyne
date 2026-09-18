@@ -1,6 +1,7 @@
 package org.golang.app;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.app.NativeActivity;
 import android.content.Context;
 import android.content.Intent;
@@ -16,6 +17,7 @@ import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CancellationSignal;
+import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.print.PageRange;
 import android.print.PrintAttributes;
@@ -47,6 +49,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 
 public class GoNativeActivity extends NativeActivity {
     private static GoNativeActivity goNativeActivity;
@@ -85,6 +88,7 @@ public class GoNativeActivity extends NativeActivity {
     private boolean isRecording = false;
 
     private TextureView cameraView;
+    private Dialog cameraDialog;
     private CameraController cameraController;
 
     private final CameraController.Callback cameraCallback = new CameraController.Callback() {
@@ -282,9 +286,11 @@ public class GoNativeActivity extends NativeActivity {
         if (requestCode == 1001 && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             doStartMicrophone();
         } else if (requestCode == CAMERA_PERMISSION_CODE) {
+            Log.i("Fyne", "onRequestPermissionsResult: CAMERA grantResults=" + Arrays.toString(grantResults));
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 startCameraSession();
             } else {
+                Log.e("Fyne", "onRequestPermissionsResult: CAMERA permission denied, notifying Go");
                 cameraReturned("");
             }
         }
@@ -328,6 +334,7 @@ public class GoNativeActivity extends NativeActivity {
     }
 
     static void openCamera() {
+        Log.i("Fyne", "openCamera: JNI entry, goNativeActivity=" + goNativeActivity);
         goNativeActivity.doOpenCamera();
     }
 
@@ -340,46 +347,84 @@ public class GoNativeActivity extends NativeActivity {
     }
 
     void doOpenCamera() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[] { Manifest.permission.CAMERA }, CAMERA_PERMISSION_CODE);
-                return;
-            }
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            Log.i("Fyne", "doOpenCamera: hopping to UI thread");
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    doOpenCamera();
+                }
+            });
+            return;
+        }
+        boolean granted = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+        Log.i("Fyne", "doOpenCamera: SDK=" + Build.VERSION.SDK_INT + " permission granted=" + granted);
+        try {
+            String[] requested = getPackageManager().getPackageInfo(getPackageName(),
+                    PackageManager.GET_PERMISSIONS).requestedPermissions;
+            Log.i("Fyne", "doOpenCamera: manifest permissions=" + Arrays.toString(requested));
+        } catch (Exception e) {
+            Log.e("Fyne", "doOpenCamera: could not read manifest permissions", e);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !granted) {
+            Log.i("Fyne", "doOpenCamera: requesting CAMERA permission");
+            requestPermissions(new String[] { Manifest.permission.CAMERA }, CAMERA_PERMISSION_CODE);
+            return;
         }
         startCameraSession();
     }
 
     void doCloseCamera() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    doCloseCamera();
+                }
+            });
+            return;
+        }
+        Log.i("Fyne", "doCloseCamera: controller=" + cameraController + " view=" + cameraView);
         if (cameraController != null) {
             cameraController.close();
             cameraController = null;
         }
-        if (cameraView != null) {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    View content = findViewById(android.R.id.content).getRootView();
-                    if (content instanceof FrameLayout) {
-                        ((FrameLayout) content).removeView(cameraView);
-                    }
-                }
-            });
-            cameraView = null;
+        if (cameraDialog != null) {
+            cameraDialog.dismiss();
+            cameraDialog = null;
         }
+        cameraView = null;
     }
 
     void doTakePicture() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    doTakePicture();
+                }
+            });
+            return;
+        }
+        Log.i("Fyne", "doTakePicture: controller=" + cameraController);
         if (cameraController != null) {
             cameraController.takePicture();
         }
     }
 
     private void startCameraSession() {
+        Log.i("Fyne", "startCameraSession: view=" + cameraView + " controller=" + cameraController);
         if (cameraView == null) {
+            // NativeActivity owns the window surface (takeSurface) so views added to the
+            // activity are never drawn and a TextureView would never get a SurfaceTexture.
+            // Show the preview in a separate window, which renders normally.
+            cameraDialog = new Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+            cameraDialog.setCancelable(false);
             cameraView = new TextureView(this);
-            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
-            addContentView(cameraView, params);
+            cameraDialog.setContentView(cameraView, new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+            cameraDialog.show();
+            Log.i("Fyne", "startCameraSession: preview dialog shown");
         }
         if (cameraController == null) {
             cameraController = new CameraController(this, cameraView, cameraCallback);
