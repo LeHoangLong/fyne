@@ -9,7 +9,9 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Rect;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.widget.ImageView;
 import android.Manifest;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
@@ -38,6 +40,7 @@ import android.view.WindowInsets;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.view.KeyEvent;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -90,11 +93,26 @@ public class GoNativeActivity extends NativeActivity {
     private TextureView cameraView;
     private Dialog cameraDialog;
     private CameraController cameraController;
+    private ImageView cameraThumbnail;
+    private String lastPhotoUri;
 
     private final CameraController.Callback cameraCallback = new CameraController.Callback() {
         @Override
-        public void onPhoto(String uri) {
-            cameraReturned(uri);
+        public void onPhoto(final String uri) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (uri != null && !uri.isEmpty()) {
+                        lastPhotoUri = uri;
+                        if (cameraThumbnail != null) {
+                            Log.i("Fyne", "showing captured photo thumbnail: " + uri);
+                            cameraThumbnail.setImageURI(Uri.parse(uri));
+                        }
+                    }
+                    // empty uri to signal camera off
+                    cameraReturned("");
+                }
+            });
         }
     };
 
@@ -393,6 +411,8 @@ public class GoNativeActivity extends NativeActivity {
             cameraDialog.dismiss();
             cameraDialog = null;
         }
+        cameraThumbnail = null;
+        lastPhotoUri = null;
         cameraView = null;
     }
 
@@ -420,9 +440,67 @@ public class GoNativeActivity extends NativeActivity {
             // Show the preview in a separate window, which renders normally.
             cameraDialog = new Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
             cameraDialog.setCancelable(false);
+
+            FrameLayout root = new FrameLayout(this);
             cameraView = new TextureView(this);
-            cameraDialog.setContentView(cameraView, new FrameLayout.LayoutParams(
+            root.addView(cameraView, new FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+            // Standard camera shutter: translucent ring with a solid white core.
+            FrameLayout shutter = new FrameLayout(this);
+            shutter.setBackground(ovalDrawable(0x80FFFFFF));
+            View shutterCore = new View(this);
+            shutterCore.setBackground(ovalDrawable(0xFFFFFFFF));
+            shutter.addView(shutterCore, new FrameLayout.LayoutParams(
+                    dp(74), dp(74), Gravity.CENTER));
+            shutter.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Log.i("Fyne", "shutter clicked");
+                    if (cameraController != null) {
+                        cameraController.takePicture();
+                    }
+                }
+            });
+            FrameLayout.LayoutParams shutterParams = new FrameLayout.LayoutParams(
+                    dp(96), dp(96), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+            shutterParams.bottomMargin = dp(40);
+            root.addView(shutter, shutterParams);
+
+            // Done (tick) button, returns the last captured photo to the app.
+            TextView close = new TextView(this);
+            close.setText("\u2713");
+            close.setTextSize(26);
+            close.setTextColor(0xFFFFFFFF);
+            close.setGravity(Gravity.CENTER);
+            close.setBackground(ovalDrawable(0xFF4CAF50));
+            close.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Log.i("Fyne", "done clicked, lastPhotoUri=" + lastPhotoUri);
+                    String result = lastPhotoUri != null ? lastPhotoUri : "";
+                    doCloseCamera();
+                    cameraReturned(result);
+                }
+            });
+            FrameLayout.LayoutParams closeParams = new FrameLayout.LayoutParams(
+                    dp(56), dp(56), Gravity.BOTTOM | Gravity.START);
+            closeParams.bottomMargin = dp(60);
+            closeParams.leftMargin = dp(32);
+            root.addView(close, closeParams);
+
+            // Last captured photo, standard camera gallery position.
+            cameraThumbnail = new ImageView(this);
+            cameraThumbnail.setBackground(ovalDrawable(0x80FFFFFF));
+            cameraThumbnail.setClipToOutline(true);
+            cameraThumbnail.setPadding(dp(3), dp(3), dp(3), dp(3));
+            FrameLayout.LayoutParams thumbParams = new FrameLayout.LayoutParams(
+                    dp(72), dp(72), Gravity.BOTTOM | Gravity.END);
+            thumbParams.bottomMargin = dp(52);
+            thumbParams.rightMargin = dp(32);
+            root.addView(cameraThumbnail, thumbParams);
+
+            cameraDialog.setContentView(root);
             cameraDialog.show();
             Log.i("Fyne", "startCameraSession: preview dialog shown");
         }
@@ -430,6 +508,17 @@ public class GoNativeActivity extends NativeActivity {
             cameraController = new CameraController(this, cameraView, cameraCallback);
         }
         cameraController.open();
+    }
+
+    private GradientDrawable ovalDrawable(int color) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.OVAL);
+        drawable.setColor(color);
+        return drawable;
+    }
+
+    private int dp(float value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     static int getRune(int deviceId, int keyCode, int metaState) {
