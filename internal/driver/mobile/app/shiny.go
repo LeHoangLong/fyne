@@ -54,3 +54,19 @@ func driverStopMicrophone() {
 func driverGetExperimentalKeyboardV2Event() (<-chan KeyboardV2Event, error) {
 	return nil, fmt.Errorf("GetExperimentalKeyboardV2Event is not implemented on Windows")
 }
+
+func UseExperimentalKeyboardV2() bool {
+	return false
+}
+
+func GetCurrentKeyboardValue() string {
+	return ""
+}
+
+func SetCurrentKeyboardValue(val string) {}
+
+func GetCurrentCursorOffset() (int, int) {
+	return 0, 0
+}
+
+func SetCurrentCursorOffset(offsetStart int, offsetEnd int) {}
